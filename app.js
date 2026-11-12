@@ -1,4 +1,4 @@
-import { start, load, save } from "./db.js";
+import { load, save } from "./db.js";
 
 const D = window.SCHEDULE;
 const TODAY = WP.fmt(new Date());
@@ -141,10 +141,23 @@ $("exams").oninput = (e) => {
 };
 $("exams").onchange = (e) => { if (e.target.dataset.k) { save("wp.progress", progress); renderExams(); renderBriefing(); } };
 
-renderTT();
-start(async (user) => {
-  document.body.classList.toggle("locked", !user);
-  if (!user) return;
-  [myEvents, progress] = await Promise.all([load("wp.events", []), load("wp.progress", {})]);
-  render();
-}, $("auth"));
+$("export").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ events: myEvents, progress }, null, 2)], { type: "application/json" }));
+  a.download = `work-plan-backup-${TODAY}.json`; a.click(); URL.revokeObjectURL(a.href);
+};
+$("import").onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  try {
+    const d = JSON.parse(await file.text());
+    if (!Array.isArray(d.events) || !d.events.every((x) => x.date && x.start && x.end && x.title)) throw new Error("형식이 맞지 않아요");
+    if (!confirm(`백업의 일정 ${d.events.length}건으로 지금 기록을 바꿀까요? 현재 추가한 일정은 사라져요.`)) return;
+    myEvents = d.events; progress = d.progress || {};
+    save("wp.events", myEvents); save("wp.progress", progress); render();
+  } catch (err) { alert("백업 파일을 읽지 못했어요: " + err.message); }
+};
+
+myEvents = load("wp.events", []);
+progress = load("wp.progress", {});
+render(); renderTT();

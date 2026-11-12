@@ -8,6 +8,9 @@
 body { margin: 0; background: var(--shirt); color: var(--ink); font: 14px/1.55 "IBM Plex Sans KR", "Malgun Gothic", sans-serif; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 button { font: inherit; border: 1px solid var(--line); background: #fff; color: inherit; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+.btn { font: inherit; font-size: 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.toolbar { display: flex; gap: 6px; flex-wrap: wrap; font-weight: 400; }
+.toolbar button { font-size: 12px; padding: 4px 10px; }
 button.primary { background: var(--suit); border-color: var(--suit); color: #fff; font-weight: 600; }
 button.ghost { background: transparent; border-color: #4a505d; color: #e7e2d6; }
 input, select { font: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; min-width: 0; background: #fff; }
@@ -33,10 +36,6 @@ input, select { font: inherit; border: 1px solid var(--line); border-radius: 6px
   .band { grid-template-columns: 1fr; gap: 14px; }
   .count { border-left: 0; padding-left: 0; }
 }
-
-body.locked main { display: none; }
-.gate { display: none; max-width: 520px; margin: 60px auto; text-align: center; color: var(--sub); }
-body.locked .gate { display: block; }
 
 main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 16px; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--card); border: 1px solid var(--line); border-radius: 8px; }

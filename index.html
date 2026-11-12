@@ -3,6 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#23272f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Work Plan">
   <title>Work Plan</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap">
@@ -12,7 +16,6 @@
   <header class="brief">
     <div class="top">
       <h1>Work Plan</h1>
-      <button id="auth" class="ghost" hidden>Google 로그인</button>
     </div>
     <div class="band">
       <div class="date" id="bDate"></div>
@@ -23,10 +26,6 @@
       <div class="count" id="bCount"></div>
     </div>
   </header>
-
-  <div class="gate">
-    <p>내 일정을 불러오려면 위의 <b>Google 로그인</b> 버튼을 눌러 주세요.</p>
-  </div>
 
   <main>
     <section class="stats" id="stats"></section>
@@ -67,7 +66,10 @@
     </div>
 
     <section class="card">
-      <h2>주간 고정 시간표</h2>
+      <h2>주간 고정 시간표 <span class="right toolbar">
+        <button id="export">백업 파일 저장</button>
+        <label class="btn">백업 불러오기<input type="file" id="import" accept="application/json" hidden></label>
+      </span></h2>
       <div class="scroll"><div class="tt" id="tt"></div></div>
     </section>
   </main>
