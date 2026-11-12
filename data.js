@@ -15,6 +15,7 @@ window.SCHEDULE = {
     { day: 3, start: "18:00", end: "23:00", title: "아르바이트", type: "work" },
     { day: 4, start: "10:00", end: "13:00", title: "특강 한국사", type: "class" },
     { day: 4, start: "14:00", end: "17:00", title: "고급 비즈니스 프로그래밍", type: "class" },
+    { day: 4, start: "19:00", end: "20:00", title: "AX 스터디", type: "meeting" },
     { day: 5, start: "13:00", end: "17:00", title: "AX 프로젝트 현장 방문", type: "field" },
     { day: 6, start: "18:00", end: "23:00", title: "아르바이트", type: "work" },
   ],
