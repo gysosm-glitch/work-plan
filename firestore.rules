@@ -1,0 +1,9 @@
+// Firebase 콘솔 > Firestore > 규칙 탭에 붙여넣기. 본인 데이터만 읽고 쓸 수 있다.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

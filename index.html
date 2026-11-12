@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Work Plan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Oswald:wght@500;600&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="brief">
+    <div class="top">
+      <h1>Work Plan</h1>
+      <button id="auth" class="ghost" hidden>Google 로그인</button>
+    </div>
+    <div class="band">
+      <div class="date" id="bDate"></div>
+      <div class="today">
+        <div class="strip" id="strip"></div>
+        <p class="next" id="bNext"></p>
+      </div>
+      <div class="count" id="bCount"></div>
+    </div>
+  </header>
+
+  <div class="gate">
+    <p>내 일정을 불러오려면 위의 <b>Google 로그인</b> 버튼을 눌러 주세요.</p>
+  </div>
+
+  <main>
+    <section class="stats" id="stats"></section>
+
+    <div class="row">
+      <section class="card">
+        <h2><button id="prev" class="nav" aria-label="이전 달">‹</button><span id="month"></span><button id="next" class="nav" aria-label="다음 달">›</button>
+          <span class="right legend">하루 일정 시간
+            <span><i class="sw l0"></i>0</span><span><i class="sw l1"></i>3h</span><span><i class="sw l2"></i>5h</span><span><i class="sw l3"></i>7h</span><span><i class="sw l4"></i>8h+</span>
+          </span>
+        </h2>
+        <div class="cal" id="cal"></div>
+      </section>
+      <section class="card">
+        <h2 id="dayTitle"></h2>
+        <ul class="agenda" id="agenda"></ul>
+        <form class="form" id="addForm">
+          <input class="full" name="title" placeholder="이 날에 일정 추가 (예: 정보처리기사 필기)" required aria-label="일정 이름">
+          <input name="start" type="time" value="10:00" required aria-label="시작 시간">
+          <input name="end" type="time" value="12:00" required aria-label="종료 시간">
+          <select name="type" aria-label="종류">
+            <option value="cert">자격증</option><option value="etc">기타</option><option value="meeting">회의</option><option value="work">아르바이트</option>
+          </select>
+          <button class="primary">일정 추가</button>
+        </form>
+      </section>
+    </div>
+
+    <div class="row">
+      <section class="card">
+        <h2>시험과 발표 <span class="right muted small">중간고사 없는 과목은 21일 전, 나머지는 10일 전부터 준비</span></h2>
+        <div class="scroll"><table id="exams"></table></div>
+      </section>
+      <section class="card">
+        <h2>공부하기 좋은 날 <span class="right muted small">앞으로 14일</span></h2>
+        <table id="free"></table>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>주간 고정 시간표</h2>
+      <div class="scroll"><div class="tt" id="tt"></div></div>
+    </section>
+  </main>
+  <script src="data.js"></script>
+  <script src="logic.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
