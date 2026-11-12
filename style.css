@@ -102,3 +102,33 @@ td.dd { font: 500 15px Oswald, sans-serif; }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
 .prog { width: 110px; vertical-align: middle; accent-color: var(--suit); }
 .pv { display: inline-block; width: 36px; font-variant-numeric: tabular-nums; }
+
+.agenda .acts { margin-left: auto; display: flex; }
+.agenda .acts .x { margin-left: 0; }
+.form.editing { background: #fbf6ee; outline: 1px solid var(--brass); border-radius: 6px; padding: 8px; }
+.small-btn { font-size: 12px; padding: 2px 10px; font-weight: 400; }
+.backup-bar { background: #fbf3e4; border-bottom: 1px solid #ead7b4; padding: 10px 16px; font-size: 13px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.backup-bar[hidden] { display: none; }
+.backup-bar button { font-size: 12px; padding: 4px 12px; }
+
+/* 시간표·시험 편집 창 */
+dialog#setup { width: min(920px, calc(100vw - 24px)); max-height: calc(100vh - 32px); border: 1px solid var(--line); border-radius: 10px; padding: 20px; color: var(--ink); }
+dialog#setup::backdrop { background: rgba(20, 24, 31, .55); }
+dialog#setup h2 { margin: 0 0 6px; font-size: 17px; }
+dialog#setup h3 { font-size: 14px; margin: 18px 0 8px; display: flex; align-items: center; gap: 10px; }
+dialog#setup h3 button { font-size: 12px; padding: 2px 10px; font-weight: 400; }
+.inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.inline label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.inline .grow { flex: 1 1 260px; min-width: 0; }
+.inline .grow input { flex: 1; min-width: 0; width: 100%; }
+table.edit select[name=day] { min-width: 58px; }
+table.edit input[type=time] { min-width: 116px; }
+table.edit input[type=date] { min-width: 140px; }
+table.edit td { padding: 4px 3px; border-bottom: 1px solid var(--line); }
+table.edit input, table.edit select { width: 100%; padding: 4px 6px; }
+table.edit input[name=title], table.edit input[name=course] { min-width: 150px; }
+table.edit td.c { text-align: center; }
+table.edit input[type=checkbox] { width: auto; }
+table.edit .x { border: none; background: none; color: var(--sub); }
+.actions { display: flex; gap: 8px; margin-top: 18px; align-items: center; }
+.actions .grow { flex: 1; }

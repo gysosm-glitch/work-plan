@@ -26,6 +26,10 @@
       <div class="count" id="bCount"></div>
     </div>
   </header>
+  <div class="backup-bar" id="backupBar" hidden role="status">
+    이번 달 백업을 아직 저장하지 않았어요. 한 번 눌러 백업 파일을 저장해 두세요.
+    <button class="now primary">지금 백업 저장</button><button class="later">나중에</button>
+  </div>
 
   <main>
     <section class="stats" id="stats"></section>
@@ -44,19 +48,21 @@
         <ul class="agenda" id="agenda"></ul>
         <form class="form" id="addForm">
           <input class="full" name="title" placeholder="이 날에 일정 추가 (예: 정보처리기사 필기)" required aria-label="일정 이름">
+          <input name="date" type="date" required aria-label="날짜">
+          <select name="type" aria-label="종류">
+            <option value="cert">자격증</option><option value="etc">기타</option><option value="meeting">회의</option><option value="work">아르바이트</option><option value="class">수업</option><option value="club">동아리</option><option value="field">현장</option>
+          </select>
           <input name="start" type="time" value="10:00" required aria-label="시작 시간">
           <input name="end" type="time" value="12:00" required aria-label="종료 시간">
-          <select name="type" aria-label="종류">
-            <option value="cert">자격증</option><option value="etc">기타</option><option value="meeting">회의</option><option value="work">아르바이트</option>
-          </select>
-          <button class="primary">일정 추가</button>
+          <button class="primary" id="addBtn">일정 추가</button>
+          <button type="button" id="cancelEdit" hidden>수정 취소</button>
         </form>
       </section>
     </div>
 
     <div class="row">
       <section class="card">
-        <h2>시험과 발표 <span class="right muted small">중간고사 없는 과목은 21일 전, 나머지는 10일 전부터 준비</span></h2>
+        <h2>시험과 발표 <span class="right muted small">중간고사 없는 과목은 21일 전, 나머지는 10일 전부터 준비</span> <button class="openSetup small-btn">시험 편집</button></h2>
         <div class="scroll"><table id="exams"></table></div>
       </section>
       <section class="card">
@@ -67,12 +73,43 @@
 
     <section class="card">
       <h2>주간 고정 시간표 <span class="right toolbar">
+        <button class="openSetup primary">시간표·시험 편집</button>
         <button id="export">백업 파일 저장</button>
         <label class="btn">백업 불러오기<input type="file" id="import" accept="application/json" hidden></label>
       </span></h2>
       <div class="scroll"><div class="tt" id="tt"></div></div>
     </section>
   </main>
+
+  <dialog id="setup" aria-labelledby="setupTitle">
+    <form id="setupForm">
+      <h2 id="setupTitle">시간표·시험 편집</h2>
+
+      <h3>학기</h3>
+      <div class="inline">
+        <label>개강 <input type="date" id="semStart" required></label>
+        <label>종강 <input type="date" id="semEnd" required></label>
+        <label class="grow">휴강일 <input id="skip" placeholder="2026-11-20, 2026-12-01"></label>
+      </div>
+      <p class="muted small">개강~종강 사이에만 고정 시간표가 반복돼요. 휴강일에는 고정 일정이 빠져요.</p>
+
+      <h3>매주 고정 일정 <button type="button" id="addW">+ 일정 추가</button></h3>
+      <div class="scroll"><table class="edit"><thead><tr><th>요일</th><th>시작</th><th>종료</th><th>이름</th><th>종류</th><th></th></tr></thead><tbody id="wRows"></tbody></table></div>
+
+      <h3>시험·발표 <button type="button" id="addE">+ 시험 추가</button></h3>
+      <div class="scroll"><table class="edit"><thead><tr><th>과목</th><th>구분</th><th>날짜</th><th>후보 날짜</th><th>중간고사 없음</th><th></th></tr></thead><tbody id="eRows"></tbody></table></div>
+      <p class="muted small">날짜가 확정되면 후보 날짜를 비워 주세요. 중간고사가 없는 과목은 21일 전부터 준비하도록 표시돼요.</p>
+
+      <div class="actions">
+        <button type="button" id="resetSetup">처음 상태로 되돌리기</button>
+        <span class="grow"></span>
+        <button type="button" id="closeSetup">취소</button>
+        <button class="primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+  <datalist id="kinds"><option value="기말고사"><option value="중간고사"><option value="기말 발표"><option value="과제 마감"><option value="자격증 시험"></datalist>
+
   <script src="data.js"></script>
   <script src="logic.js"></script>
   <script type="module" src="app.js"></script>
