@@ -15,7 +15,7 @@ const H0 = 8, H1 = 23; // 화면에 그리는 시간 범위
 let myEvents = load("wp.events", []);
 let done = load("wp.weeks", {});  // { 과목: [완료한 주차] }
 let prog = load("wp.wprog", {}); // { 과목: { 주차: 진행률% } } — 100%면 done에도 들어간다
-let logs = load("wp.logs", {});   // { 날짜: { snap, blocks: { "과목|주차": 블록 + done + note }, extra: [더 한 것] } }
+let logs = load("wp.logs", {});   // { 날짜: { snap, blocks: { "과목|주차": 블록 + done + note }, extra: [계획초과] } }
 let todos = load("wp.todos", {}); // { 주 월요일: [{ text, done }] }
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
 let tab = load("wp.tab", "day");
@@ -136,7 +136,6 @@ function renderDay() {
     }
   }
   $("dayList").innerHTML = rows.join("") || `<li class="empty">🌿 비어 있는 날이에요. 쉬거나 밀린 공부를 해 보세요.</li>`;
-  renderExtras();
   if (editing === null) $("addForm").date.value = sel;
 }
 
@@ -173,19 +172,19 @@ function renderWeek() {
   renderReview(mon, days);
 }
 
-// 🔁 이번 주 정리: 못 한 공부 / 이월된 준비할 것 / 이번 주·지난주에 더 한 것
+// 🔁 이번 주 정리: 못 한 공부 / 이월된 준비할 것 / 지난주 계획초과 (이번 주 계획초과는 아래 기록 칸에 표시)
 function renderReview(mon, days) {
   const miss = missed();
   const carried = todosFor(mon).filter((t) => t.carry && !t.done);
   const extrasIn = (ds) => ds.flatMap((d) => (logs[d]?.extra || []).map((x) => ({ d, ...x })));
-  const thisEx = extrasIn(days), lastEx = extrasIn(Array.from({ length: 7 }, (_, i) => WP.addDays(mon, i - 7)));
+  const lastEx = extrasIn(Array.from({ length: 7 }, (_, i) => WP.addDays(mon, i - 7)));
   const exLi = (x) => `<li><span class="muted small">${label(x.d)}</span> ${esc(x.course)}${x.week ? ` ${x.week}주차` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</li>`;
   const box = (cls, title, body, empty) => `<div class="rv ${cls}"><h3>${title}</h3>${body || `<p class="muted small">${empty}</p>`}</div>`;
   $("review").innerHTML =
     box("miss", `❌ 못 한 공부 <span class="muted small">${miss.length}개</span>`, miss.length ? `<ul>${miss.map((b) => `<li><span class="muted small">${label(b.date)}</span> ${esc(b.course)} ${b.week}주차${b.pct ? ` (${b.pct}%)` : ""}</li>`).join("")}</ul><p class="muted small">남은 분량만큼 다음 빈 시간에 자동으로 다시 들어가요.</p>` : "", "밀린 공부가 없어요 👏") +
     box("carry", `⏩ 이월된 준비할 것 <span class="muted small">${carried.length}개</span>`, carried.length ? `<ul>${carried.map((t) => `<li>${esc(t.text)}</li>`).join("")}</ul>` : "", "지난주에서 넘어온 항목이 없어요") +
-    box("extra", `➕ 이번 주에 더 한 것 <span class="muted small">${thisEx.length}개</span>`, thisEx.length ? `<ul>${thisEx.map(exLi).join("")}</ul><p class="muted small">주가 끝나면(다음 월요일) 집계해서 다음 주 계획에 반영해요.</p>` : "", "일간 계획에서 기록할 수 있어요") +
-    box("last", `📌 지난주에 더 한 것 <span class="muted small">${lastEx.length}개</span>`, lastEx.length ? `<ul>${lastEx.map(exLi).join("")}</ul>` : "", "기록 없음");
+    box("last", `📌 지난주 계획초과 <span class="muted small">${lastEx.length}개 · 이번 주 계획에 반영됨</span>`, lastEx.length ? `<ul>${lastEx.map(exLi).join("")}</ul>` : "", "기록 없음");
+  renderExtras(days);
 }
 
 // 지난 날 확정된 공부 블록 중 완료하지 못했고, 아직 시험이 남은 과목의 주차
@@ -201,25 +200,27 @@ function missed() {
   return [...m.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/* ---------- ➕ 계획보다 더 한 것 ---------- */
+/* ---------- 📈 계획초과 (주간 계획 탭) ---------- */
 function extraWeeks() {
   const c = WP.courses(D, TODAY).find((x) => x.course === $("extraCourse").value);
   $("extraWeek").innerHTML = `<option value="">주차 선택 안 함</option>` + (c ? WP.weekRange(c).filter((w) => !isDone(c.course, w)).map((w) => `<option value="${w}">${w}주차</option>`).join("") : "");
 }
-function renderExtras() {
+function renderExtras(days) {
   const keep = $("extraCourse").value;
   const cs = WP.courses(D, TODAY).filter((c) => c.deadline).map((c) => c.course);
   $("extraCourse").innerHTML = cs.map((c) => `<option${c === keep ? " selected" : ""}>${esc(c)}</option>`).join("") + `<option value="기타"${keep === "기타" ? " selected" : ""}>기타 (과목 외)</option>`;
   extraWeeks();
-  const list = logs[sel]?.extra || [];
-  $("extraList").innerHTML = list.map((x, i) => `<li>➕ <b>${esc(x.course)}</b>${x.week ? ` ${x.week}주차` : ""}${x.note ? ` · ${esc(x.note)}` : ""}<button class="x" data-i="${i}" aria-label="삭제">✕</button></li>`).join("");
+  const list = days.flatMap((d) => (logs[d]?.extra || []).map((x, i) => ({ d, i, ...x })));
+  $("extraList").innerHTML = list.map((x) => `<li>📈 <span class="muted small">${label(x.d)}</span> <b>${esc(x.course)}</b>${x.week ? ` ${x.week}주차` : ""}${x.note ? ` · ${esc(x.note)}` : ""}<button class="x" data-d="${x.d}" data-i="${x.i}" aria-label="삭제">✕</button></li>`).join("") || `<li class="none muted small">이번 주 계획초과 기록이 없어요.</li>`;
 }
 $("extraCourse").onchange = extraWeeks;
 $("extraForm").onsubmit = (e) => {
   e.preventDefault();
   const course = $("extraCourse").value, week = +$("extraWeek").value || 0, note = e.target.note.value.trim();
   if (!week && !note) return alert("주차를 고르거나 내용을 적어 주세요.");
-  const day = (logs[sel] ||= { blocks: {} });
+  // 이번 주를 보고 있으면 오늘 날짜로, 다른 주를 보고 있으면 선택한 날짜로 기록
+  const d = WP.mondayOf(sel) === WP.mondayOf(TODAY) ? TODAY : sel;
+  const day = (logs[d] ||= { blocks: {} });
   (day.extra ||= []).push({ course, week, note });
   save("wp.logs", logs);
   // 이번 주 계획은 그대로 두고, 다음 월요일에 집계해서 반영한다
@@ -228,7 +229,7 @@ $("extraForm").onsubmit = (e) => {
 };
 $("extraList").onclick = (e) => {
   const b = e.target.closest(".x"); if (!b) return;
-  const x = logs[sel].extra.splice(+b.dataset.i, 1)[0];
+  const x = logs[b.dataset.d].extra.splice(+b.dataset.i, 1)[0];
   save("wp.logs", logs);
   if (x.week && x.applied) setPct(x.course, x.week, 0); // 이미 집계된 기록을 지우면 완료 처리도 되돌림
   refresh();
@@ -247,7 +248,7 @@ function renderCal() {
     const cls = ["day", `l${level(h)}`, d.slice(0, 7) !== view && "out", d === TODAY && "today", d === sel && "sel"].filter(Boolean).join(" ");
     const ex = WP.examsOn(D, d).map((e) => `<span class="ex" title="${esc(e.course)} ${esc(e.kind)}">🎯 ${esc(e.course)}</span>`).join("");
     const alt = D.exams.filter((e) => e.alt === d).map((e) => `<span class="ex alt" title="후보일">${esc(e.course)}?</span>`).join("");
-    const memo = logs[d]?.extra?.length ? `<span class="memo" title="계획보다 더 한 것 있음">➕</span>` : "";
+    const memo = logs[d]?.extra?.length ? `<span class="memo" title="계획초과 기록 있음">📈</span>` : "";
     html += `<button class="${cls}" data-d="${d}" aria-label="${label(d)} ${h}시간"><span class="n">${+d.slice(8)}</span>${h ? `<span class="h">${h}h</span>` : ""}${memo}${ex}${alt}</button>`;
   }
   $("cal").innerHTML = html;
@@ -594,7 +595,7 @@ if (TODAY >= START) {
 
 const hasData = myEvents.length > 0 || Object.keys(logs).length > 0 || Object.keys(done).length > 0 || Object.keys(todos).length > 0 || tabsCfg.custom.length > 0 || Object.keys(load("wp.schedule", {})).length > 0;
 
-// 주간 집계: 지난주까지 기록한 "더 한 것"의 주차를 완료로 처리해서 이번 주 계획에 반영한다(주마다 한 번)
+// 주간 집계: 지난주까지 기록한 "계획초과"의 주차를 완료로 처리해서 이번 주 계획에 반영한다(주마다 한 번)
 const thisMon = WP.mondayOf(TODAY);
 let tallied = false;
 for (const [d, v] of Object.entries(logs)) {

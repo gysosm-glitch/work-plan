@@ -78,15 +78,6 @@
         </form>
         <p class="muted small hint">넣은 시간에는 공부 블록이 배분되지 않아요.</p>
 
-        <h2 class="mt">➕ 계획보다 더 한 것</h2>
-        <form class="form" id="extraForm">
-          <select name="course" id="extraCourse" aria-label="과목"></select>
-          <select name="week" id="extraWeek" aria-label="주차"></select>
-          <input class="full" name="note" placeholder="예: 5주차 실습까지 미리 끝냄" maxlength="60" aria-label="더 한 내용">
-          <button class="primary full">더 한 것 기록</button>
-        </form>
-        <ul class="extras" id="extraList"></ul>
-        <p class="muted small hint">이번 주 계획은 그대로 두고, 주가 끝나면(다음 월요일) 고른 주차를 완료로 집계해서 다음 주 계획에 반영해요.</p>
       </section>
     </div>
 
@@ -96,6 +87,17 @@
         <span class="right legend"><span><i class="sw study"></i>✏️ 자동 배분된 공부</span><span><i class="sw fixed"></i>고정·내 일정</span></span></h2>
       <div class="weeksum" id="weekSum"></div>
       <div class="review" id="review"></div>
+      <div class="over">
+        <h3>📈 계획초과 기록 <span class="muted small">계획보다 더 한 공부</span></h3>
+        <form class="form" id="extraForm">
+          <select name="course" id="extraCourse" aria-label="과목"></select>
+          <select name="week" id="extraWeek" aria-label="주차"></select>
+          <input name="note" placeholder="예: 6주차 실습까지 미리 끝냄" maxlength="60" aria-label="계획초과 내용">
+          <button class="primary">계획초과 기록</button>
+        </form>
+        <ul class="extras" id="extraList"></ul>
+        <p class="muted small hint">이번 주 계획은 그대로 두고, 주가 끝나면(다음 월요일) 고른 주차를 완료로 집계해서 다음 주 계획에 반영해요.</p>
+      </div>
       <div class="scroll"><div class="tt" id="tt"></div></div>
     </section>
 
