@@ -49,4 +49,11 @@ const done = { 데이터분석프로그래밍: Array.from({ length: 13 }, (_, i)
 assert.ok(W.planWeek(D, [], done, {}, week, "2026-11-12").blocks.every((b) => b.course !== "데이터분석프로그래밍"));
 // 오늘은 지금 시각 이후에만 배분
 assert.ok(W.planWeek(D, [], {}, {}, week, "2026-11-12", 20 * 60).blocks.filter((b) => b.date === "2026-11-12").every((b) => b.start >= "20:00"));
+// 진행률: 데이터분석(상, 120분) 1주차 50% → 60분만 배분
+const half = W.planWeek(D, [], {}, {}, week, "2026-11-12", 0, { 데이터분석프로그래밍: { 1: 50 } }).blocks.find((b) => b.key === "데이터분석프로그래밍|1");
+assert.strictEqual(W.toMin(half.end) - W.toMin(half.start), 60);
+// 지난 날 못 한 블록은 같은 주 남은 날로 다시 배분
+const missLog = { "2026-11-13": { blocks: { "데이터분석프로그래밍|1": { key: "데이터분석프로그래밍|1", course: "데이터분석프로그래밍", week: 1, start: "09:00", end: "11:00", done: false } } } };
+const re = W.planWeek(D, [], {}, missLog, week, "2026-11-14").blocks.find((b) => b.course === "데이터분석프로그래밍" && b.week === 1);
+assert.ok(re && re.date >= "2026-11-14", "못 한 1주차가 11/14 이후로 다시 잡힘");
 console.log("ok");

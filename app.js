@@ -14,6 +14,7 @@ const H0 = 8, H1 = 23; // 화면에 그리는 시간 범위
 
 let myEvents = load("wp.events", []);
 let done = load("wp.weeks", {});  // { 과목: [완료한 주차] }
+let prog = load("wp.wprog", {}); // { 과목: { 주차: 진행률% } } — 100%면 done에도 들어간다
 let logs = load("wp.logs", {});   // { 날짜: { snap, blocks: { "과목|주차": 블록 + done + note }, extra: [더 한 것] } }
 let todos = load("wp.todos", {}); // { 주 월요일: [{ text, done }] }
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
@@ -38,7 +39,7 @@ const lvBadge = (course) => { const c = WP.courses(D, TODAY).find((x) => x.cours
 
 // 주간 자동 배분은 렌더마다 다시 계산하지 않도록 주 단위로 캐시
 const planCache = {};
-const plan = (weekStart) => (planCache[weekStart] ??= WP.planWeek(D, myEvents, done, logs, weekStart, TODAY, nowMin()));
+const plan = (weekStart) => (planCache[weekStart] ??= WP.planWeek(D, myEvents, done, logs, weekStart, TODAY, nowMin(), prog));
 const invalidate = () => Object.keys(planCache).forEach((k) => delete planCache[k]);
 
 // 그날의 공부 블록 = 기록된 블록 + (오늘 이후라면) 자동 배분된 블록
@@ -57,6 +58,14 @@ function logBlock(date, b, patch) {
   const cur = day.blocks[b.key] || { key: b.key, course: b.course, week: b.week, start: b.start, end: b.end, type: "study", date };
   day.blocks[b.key] = { ...cur, ...patch };
   save("wp.logs", logs);
+}
+
+const pctOf = (c, w) => (isDone(c, w) ? 100 : (prog[c] || {})[w] || 0);
+// 주차 진행률 저장: 100%면 완료, 아니면 완료 해제
+function setPct(course, week, v) {
+  (prog[course] ||= {})[week] = v;
+  save("wp.wprog", prog);
+  setWeekDone(course, week, v === 100);
 }
 
 function setWeekDone(course, week, on) {
@@ -117,7 +126,7 @@ function renderDay() {
         <div class="body">
           <div class="ttl">✏️ <b>${esc(it.course)}</b> ${it.week}주차 복습 ${lvBadge(it.course)} ${isDone(it.course, it.week) ? '<span class="badge b-green">주차 완료</span>' : ""}</div>
           <div class="logrow">
-            <label class="chk"><input type="checkbox" class="bdone"${it.done ? " checked" : ""}> 주차 완료</label>
+            <label class="chk pct">진행률 <input type="range" class="bpct" min="0" max="100" step="10" value="${pctOf(it.course, it.week)}" aria-label="${esc(it.course)} ${it.week}주차 진행률"> <b class="pv">${pctOf(it.course, it.week)}%</b></label>
             <input class="bnote" value="${esc(it.note)}" placeholder="${isPast ? "기록 없음" : "어디까지 했는지 적기 (예: 슬라이드 1~20p)"}" aria-label="${esc(it.course)} ${it.week}주차 기록">
           </div>
         </div></li>`);
@@ -173,7 +182,7 @@ function renderReview(mon, days) {
   const exLi = (x) => `<li><span class="muted small">${label(x.d)}</span> ${esc(x.course)}${x.week ? ` ${x.week}주차` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</li>`;
   const box = (cls, title, body, empty) => `<div class="rv ${cls}"><h3>${title}</h3>${body || `<p class="muted small">${empty}</p>`}</div>`;
   $("review").innerHTML =
-    box("miss", `❌ 못 한 공부 <span class="muted small">${miss.length}개</span>`, miss.length ? `<ul>${miss.map((b) => `<li><span class="muted small">${label(b.date)}</span> ${esc(b.course)} ${b.week}주차</li>`).join("")}</ul><p class="muted small">체크하지 않은 주차는 다음 주 계획에 자동으로 다시 들어가요.</p>` : "", "밀린 공부가 없어요 👏") +
+    box("miss", `❌ 못 한 공부 <span class="muted small">${miss.length}개</span>`, miss.length ? `<ul>${miss.map((b) => `<li><span class="muted small">${label(b.date)}</span> ${esc(b.course)} ${b.week}주차${b.pct ? ` (${b.pct}%)` : ""}</li>`).join("")}</ul><p class="muted small">남은 분량만큼 다음 빈 시간에 자동으로 다시 들어가요.</p>` : "", "밀린 공부가 없어요 👏") +
     box("carry", `⏩ 이월된 준비할 것 <span class="muted small">${carried.length}개</span>`, carried.length ? `<ul>${carried.map((t) => `<li>${esc(t.text)}</li>`).join("")}</ul>` : "", "지난주에서 넘어온 항목이 없어요") +
     box("extra", `➕ 이번 주에 더 한 것 <span class="muted small">${thisEx.length}개</span>`, thisEx.length ? `<ul>${thisEx.map(exLi).join("")}</ul>` : "", "일간 계획에서 기록할 수 있어요") +
     box("last", `📌 지난주에 더 한 것 <span class="muted small">${lastEx.length}개</span>`, lastEx.length ? `<ul>${lastEx.map(exLi).join("")}</ul>` : "", "기록 없음");
@@ -186,7 +195,7 @@ function missed() {
   for (const [d, v] of Object.entries(logs)) {
     if (d >= TODAY) continue;
     for (const b of Object.values(v.blocks || {})) {
-      if (!b.done && !isDone(b.course, b.week) && live.get(b.course)?.lastWeek >= b.week) m.set(b.key, { ...b, date: d });
+      if (!b.done && !isDone(b.course, b.week) && live.get(b.course)?.lastWeek >= b.week) m.set(b.key, { ...b, date: d, pct: pctOf(b.course, b.week) });
     }
   }
   return [...m.values()].sort((a, b) => a.date.localeCompare(b.date));
@@ -213,7 +222,7 @@ $("extraForm").onsubmit = (e) => {
   const day = (logs[sel] ||= { blocks: {} });
   (day.extra ||= []).push({ course, week, note });
   save("wp.logs", logs);
-  if (week) setWeekDone(course, week, true);
+  if (week) setPct(course, week, 100);
   e.target.note.value = "";
   refresh();
 };
@@ -221,7 +230,7 @@ $("extraList").onclick = (e) => {
   const b = e.target.closest(".x"); if (!b) return;
   const x = logs[sel].extra.splice(+b.dataset.i, 1)[0];
   save("wp.logs", logs);
-  if (x.week) setWeekDone(x.course, x.week, false); // 기록을 지우면 완료 처리도 되돌림
+  if (x.week) setPct(x.course, x.week, 0); // 기록을 지우면 완료 처리도 되돌림
   refresh();
 };
 
@@ -250,7 +259,7 @@ function renderCourses() {
   $("courses").innerHTML = WP.courses(D, TODAY).map((c) => {
     const weeks = WP.weekRange(c);
     const fin = weeks.filter((w) => isDone(c.course, w)).length;
-    const pctv = weeks.length ? Math.round((fin / weeks.length) * 100) : 0;
+    const pctv = weeks.length ? Math.round(weeks.reduce((x, w) => x + pctOf(c.course, w), 0) / weeks.length) : 0;
     const exams = D.exams.filter((e) => e.course === c.course).sort((a, b) => a.date.localeCompare(b.date));
     const notes = Object.entries(logs).flatMap(([d, v]) => Object.values(v.blocks || {}).filter((b) => b.course === c.course && b.note).map((b) => ({ d, ...b })))
       .sort((a, b) => b.d.localeCompare(a.d)).slice(0, 4);
@@ -260,11 +269,15 @@ function renderCourses() {
       <div class="exl">${exams.map((e) => `<span class="${e.date < TODAY ? "past" : ""}">🎯 ${esc(e.kind)} ${label(e.date)}${e.alt ? ` 또는 ${label(e.alt)}` : ""} <b>${e.date < TODAY ? "종료" : ddayTxt(WP.dday(TODAY, e.date))}</b></span>`).join("")}</div>
       <div class="pbar"><i style="width:${pctv}%"></i></div>
       <p class="small muted">${fin} / ${weeks.length} 주차 완료 (${pctv}%)${c.deadline ? "" : " · 남은 시험 없음"}</p>
-      <div class="weeks">${weeks.map((w) => `<button class="wk${isDone(c.course, w) ? " on" : ""}${w > cw ? " future" : ""}" data-c="${esc(c.course)}" data-w="${w}" aria-pressed="${isDone(c.course, w)}" title="${w > cw ? "아직 진행 전인 주차" : ""}">${isDone(c.course, w) ? "✅" : ""}${w}주</button>`).join("")}</div>
+      <div class="weeks">${weeks.map((w) => `<button class="wk${isDone(c.course, w) ? " on" : ""}${w > cw ? " future" : ""}" data-c="${esc(c.course)}" data-w="${w}" aria-pressed="${isDone(c.course, w)}" style="--p:${pctOf(c.course, w)}%" title="${w > cw ? "아직 진행 전인 주차 · " : ""}눌러서 완료/취소">${isDone(c.course, w) ? "✅" : ""}${w}주${pctOf(c.course, w) && !isDone(c.course, w) ? ` <small>${pctOf(c.course, w)}%</small>` : ""}</button>`).join("")}</div>
       ${notes.length ? `<ul class="notes">${notes.map((n) => `<li><span class="muted small">${label(n.d)} · ${n.week}주차</span> ${esc(n.note)}</li>`).join("")}</ul>` : ""}
     </article>`;
   }).join("") || `<p class="muted">시험이 등록된 과목이 없어요. ⚙️ 시간표·시험 편집에서 추가해 주세요.</p>`;
 }
+
+$("dayList").addEventListener("input", (e) => {
+  if (e.target.classList.contains("bpct")) e.target.nextElementSibling.textContent = `${e.target.value}%`;
+});
 
 /* ---------- 이번 주 준비할 것 ---------- */
 // 저장된 목록이 없는 주는 가장 최근 주 목록을 체크 해제해서 이어받는다(처음에는 기본 3개)
@@ -408,9 +421,10 @@ document.querySelectorAll("[data-week]").forEach((b) => (b.onclick = () => { sel
 $("dayList").addEventListener("change", (e) => {
   const li = e.target.closest("li.study"); if (!li) return;
   const b = studyFor(sel).find((x) => x.key === li.dataset.key); if (!b) return;
-  if (e.target.classList.contains("bdone")) {
-    logBlock(sel, b, { done: e.target.checked });
-    setWeekDone(b.course, b.week, e.target.checked);
+  if (e.target.classList.contains("bpct")) {
+    const v = +e.target.value;
+    setPct(b.course, b.week, v);
+    logBlock(sel, b, { done: v === 100, pct: v });
   } else if (e.target.classList.contains("bnote")) {
     logBlock(sel, b, { note: e.target.value.trim() });
   }
@@ -418,7 +432,7 @@ $("dayList").addEventListener("change", (e) => {
 });
 $("courses").onclick = (e) => {
   const b = e.target.closest(".wk"); if (!b) return;
-  setWeekDone(b.dataset.c, +b.dataset.w, !isDone(b.dataset.c, +b.dataset.w));
+  setPct(b.dataset.c, +b.dataset.w, isDone(b.dataset.c, +b.dataset.w) ? 0 : 100);
   refresh();
 };
 
@@ -517,7 +531,7 @@ $("resetSetup").onclick = () => {
 };
 
 /* ---------- 백업 ---------- */
-const exportAll = () => downloadBackup("work-plan", { events: myEvents, weeks: done, logs, todos, tabs: tabsCfg, schedule: load("wp.schedule", {}) });
+const exportAll = () => downloadBackup("work-plan", { events: myEvents, weeks: done, wprog: prog, logs, todos, tabs: tabsCfg, schedule: load("wp.schedule", {}) });
 $("export").onclick = exportAll;
 $("import").onchange = async (e) => {
   const file = e.target.files[0]; e.target.value = "";
@@ -526,7 +540,7 @@ $("import").onchange = async (e) => {
     const d = JSON.parse(await file.text());
     if (!Array.isArray(d.events) || !d.events.every((x) => x.date && x.start && x.end && x.title)) throw new Error("형식이 맞지 않아요");
     if (!confirm(`백업으로 지금 기록을 바꿀까요? (일정 ${d.events.length}건) 현재 기록은 사라져요.`)) return;
-    myEvents = d.events; done = d.weeks || {}; logs = d.logs || {}; todos = d.todos || {}; if (d.tabs) { tabsCfg = d.tabs; saveTabs(); }
+    myEvents = d.events; done = d.weeks || {}; prog = d.wprog || {}; save("wp.wprog", prog); logs = d.logs || {}; todos = d.todos || {}; if (d.tabs) { tabsCfg = d.tabs; saveTabs(); }
     save("wp.events", myEvents); save("wp.weeks", done); save("wp.logs", logs); save("wp.todos", todos);
     if (d.schedule) { save("wp.schedule", d.schedule); D = { ...window.SCHEDULE, ...d.schedule }; }
     refresh();
@@ -541,8 +555,8 @@ const after = (obj) => Object.fromEntries(Object.entries(obj).filter(([d]) => d 
 if (TODAY >= START) {
   if (!load("wp.practiceDone", false)) {
     const sched = load("wp.schedule", {});
-    save("wp.practice", { events: myEvents.filter((e) => e.date < START), weeks: done, logs: before(logs), todos: before(todos), schedule: sched });
-    myEvents = myEvents.filter((e) => e.date >= START); done = {}; logs = after(logs); todos = after(todos);
+    save("wp.practice", { events: myEvents.filter((e) => e.date < START), weeks: done, wprog: prog, logs: before(logs), todos: before(todos), schedule: sched });
+    myEvents = myEvents.filter((e) => e.date >= START); done = {}; prog = {}; save("wp.wprog", prog); logs = after(logs); todos = after(todos);
     save("wp.events", myEvents); save("wp.weeks", done); save("wp.logs", logs); save("wp.todos", todos); save("wp.schedule", {});
     D = { ...window.SCHEDULE };
     save("wp.practiceDone", true); save("wp.practiceNotice", true);

@@ -253,3 +253,9 @@ table.edit .x { border: none; background: none; color: var(--sub); box-shadow: n
 .rv.carry { background: #fff7e6; border-color: #fde68a; }
 .rv.extra { background: #ecfdf5; border-color: #a7f3d0; }
 .rv.last { background: #f1f5ff; border-color: #c7d7fe; }
+
+/* 주차 진행률 */
+.logrow .pct input[type=range] { width: 120px; accent-color: var(--mint); }
+.logrow .pct .pv { min-width: 38px; font-variant-numeric: tabular-nums; }
+.wk { background: linear-gradient(90deg, #d8f5ea var(--p, 0%), #fff var(--p, 0%)); }
+.wk small { color: #0b7a57; font-size: 10px; }

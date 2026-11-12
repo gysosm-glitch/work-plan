@@ -67,17 +67,19 @@
 
   // 주간 계획: 이번 주에 해야 할 주차 분량을 오늘 이후의 빈 시간에 나눠 넣는다.
   // done: { 과목: [완료 주차] }, logs: { 날짜: { blocks: { key: 블록 } } } (기록된 블록은 고정으로 취급)
-  function planWeek(data, extra, done, logs, weekStart, today, nowMin = 0) {
+  // prog: { 과목: { 주차: 진행률% } } → 남은 만큼만 시간을 잡는다
+  function planWeek(data, extra, done, logs, weekStart, today, nowMin = 0, prog = {}) {
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
     const thisWeek = weekOf(data, weekStart);
     const state = {};
     const logged = new Set();
     for (const d of days) {
       const lb = Object.values(logs[d]?.blocks || {});
-      lb.forEach((b) => logged.add(b.key));
-      if (d < today) continue;
+      // 지난 날 못 한 블록은 다음 빈 시간에 다시 배분되도록 비워 둔다
+      lb.forEach((b) => { if (d >= today || b.done) logged.add(b.key); });
       const past = d === today && nowMin > 0 ? [{ start: "00:00", end: hm(Math.ceil(nowMin / 30) * 30) }] : []; // 오늘은 지금 이후만
       const used = lb.reduce((x, b) => x + toMin(b.end) - toMin(b.start), 0);
+      if (d < today) continue;
       state[d] = { slots: freeSlots([...itemsForDate(data, d, extra), ...lb, ...past]), used, per: {} };
     }
     const tasks = [];
@@ -85,7 +87,10 @@
       if (!c.deadline) continue;
       const pending = weekRange(c).filter((w) => w <= thisWeek && !(done[c.course] || []).includes(w) && !logged.has(`${c.course}|${w}`));
       const weeksLeft = Math.max(1, weekOf(data, c.deadline) - thisWeek);
-      pending.slice(0, Math.ceil(pending.length / weeksLeft)).forEach((w) => tasks.push({ course: c.course, week: w, deadline: c.deadline, len: c.len, level: c.level }));
+      pending.slice(0, Math.ceil(pending.length / weeksLeft)).forEach((w) => {
+        const rest = 1 - Math.min(99, (prog[c.course] || {})[w] || 0) / 100;
+        tasks.push({ course: c.course, week: w, deadline: c.deadline, len: Math.max(30, Math.ceil((c.len * rest) / 30) * 30), level: c.level });
+      });
     }
     // 시험이 가까운 순, 같으면 어려운 과목 먼저(긴 블록이 들어갈 자리를 먼저 확보)
     tasks.sort((a, b) => a.deadline.localeCompare(b.deadline) || b.level - a.level || a.week - b.week);
@@ -110,7 +115,8 @@
     }
     // 같은 과목은 날짜 순서대로 앞 주차부터 하도록 주차 번호를 다시 붙인다
     const byCourse = {};
-    blocks.forEach((b) => (byCourse[b.course] ||= []).push(b));
+    // 길이가 같은 블록끼리만 바꾼다(진행률이 있는 주차는 남은 시간만큼 짧아서 다른 주차와 바꾸면 안 됨)
+    blocks.forEach((b) => (byCourse[`${b.course}|${toMin(b.end) - toMin(b.start)}`] ||= []).push(b));
     for (const list of Object.values(byCourse)) {
       const weeks = list.map((b) => b.week).sort((x, y) => x - y);
       list.sort((x, y) => (x.date + x.start).localeCompare(y.date + y.start)).forEach((b, i) => { b.week = weeks[i]; b.key = `${b.course}|${b.week}`; });
