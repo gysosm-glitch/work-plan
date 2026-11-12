@@ -19,14 +19,14 @@ window.SCHEDULE = {
     { day: 5, start: "13:00", end: "17:00", title: "AX 프로젝트 현장 방문", type: "field" },
     { day: 6, start: "18:00", end: "23:00", title: "아르바이트", type: "work" },
   ],
-  // noMidterm: 중간고사가 없어 범위가 넓은 과목 → 준비를 더 일찍 시작
+  // noMidterm: 중간고사가 없는 과목 → 1주차부터 진도 체크(아니면 9주차부터)
+  // level: 난이도 1=하(주차당 60분) 2=중(90분) 3=상(120분)
   exams: [
-    { course: "데이터분석프로그래밍", kind: "기말고사", date: "2026-11-30", noMidterm: true },
-    { course: "데이터분석프로그래밍", kind: "기말 발표", date: "2026-12-14" },
-    { course: "프로젝트 관리", kind: "기말고사", date: "2026-12-08" },
-    { course: "공부에 대한 공부", kind: "기말고사", date: "2026-12-08", noMidterm: true },
-    { course: "고급 비즈니스 프로그래밍", kind: "기말 발표", date: "2026-12-10", alt: "2026-12-17" },
-    { course: "특강 한국사", kind: "기말고사", date: "2026-12-17" },
+    { course: "데이터분석프로그래밍", kind: "기말고사", date: "2026-11-30", noMidterm: true, level: 3 },
+    { course: "데이터분석프로그래밍", kind: "기말 발표", date: "2026-12-14", level: 3 },
+    { course: "프로젝트 관리", kind: "기말고사", date: "2026-12-08", level: 2 },
+    { course: "공부에 대한 공부", kind: "기말고사", date: "2026-12-08", noMidterm: true, level: 2 },
+    { course: "특강 한국사", kind: "기말고사", date: "2026-12-17", level: 1 },
   ],
   events: [], // 단발성 일정(자격증 시험 등): { date, start, end, title, type: "cert" }
 };

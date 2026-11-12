@@ -39,9 +39,11 @@ for (const b of blocks) {
   assert.ok(busy.every(([a, z]) => e <= a || s >= z), `고정 일정과 겹치지 않음: ${b.date} ${b.start}`);
   assert.ok(s >= 540 && e <= 1380);
 }
-const perDay = {};
-blocks.forEach((b) => (perDay[b.date] = (perDay[b.date] || 0) + 1));
-assert.ok(Object.values(perDay).every((n) => n <= W.CAP));
+const minDay = {};
+blocks.forEach((b) => (minDay[b.date] = (minDay[b.date] || 0) + W.toMin(b.end) - W.toMin(b.start)));
+assert.ok(Object.values(minDay).every((m) => m <= W.CAP_MIN), "하루 공부 4.5시간 이하");
+// 난이도별 블록 길이: 데이터분석(상)=120분, 한국사(하)=60분
+for (const b of blocks) assert.strictEqual(W.toMin(b.end) - W.toMin(b.start), W.LEVEL_MIN[C.find((c) => c.course === b.course).level]);
 // 완료한 주차는 다시 배분하지 않음
 const done = { 데이터분석프로그래밍: Array.from({ length: 13 }, (_, i) => i + 1) };
 assert.ok(W.planWeek(D, [], done, {}, week, "2026-11-12").blocks.every((b) => b.course !== "데이터분석프로그래밍"));

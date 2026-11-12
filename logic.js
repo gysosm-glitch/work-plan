@@ -11,8 +11,10 @@
   const DAY_HOURS = 14; // 활동 가능 시간 09~23시
 
   // 공부 블록 배분 규칙
-  const STUDY_MIN = 90;                                   // 블록 하나 = 90분 = 한 주차 분량
-  const CAP = 3;                                          // 하루 최대 블록 수
+  const LEVEL_MIN = { 1: 60, 2: 90, 3: 120 };            // 난이도(하·중·상)별 한 주차 분량 공부 시간
+  const LEVEL_NAME = { 1: "하", 2: "중", 3: "상" };
+  const STUDY_MIN = 90;                                   // 난이도 미지정 기본값
+  const CAP_MIN = 270;                                    // 하루 공부 최대 4.5시간
   const WIN = [9 * 60, 23 * 60];                          // 공부 가능 시간
   const BREAKS = [[12 * 60, 13 * 60], [18 * 60, 19 * 60]]; // 점심·저녁
 
@@ -37,13 +39,14 @@
     for (const e of data.exams) {
       const c = (map[e.course] ||= { course: e.course, noMidterm: false, dates: [] });
       if (e.noMidterm) c.noMidterm = true;
+      c.level = Math.max(c.level || 0, +e.level || 2);
       c.dates.push(e.date);
     }
     return Object.values(map).map((c) => {
       const dates = c.dates.sort();
       const deadline = dates.find((d) => d >= today) || null;
       const lastWeek = weekOf(data, deadline || dates[dates.length - 1]) - 1;
-      return { course: c.course, noMidterm: c.noMidterm, startWeek: c.noMidterm ? 1 : 9, lastWeek, deadline };
+      return { course: c.course, noMidterm: c.noMidterm, level: c.level, len: LEVEL_MIN[c.level], startWeek: c.noMidterm ? 1 : 9, lastWeek, deadline };
     }).sort((a, b) => (a.deadline || "9").localeCompare(b.deadline || "9"));
   }
 
@@ -74,23 +77,25 @@
       lb.forEach((b) => logged.add(b.key));
       if (d < today) continue;
       const past = d === today && nowMin > 0 ? [{ start: "00:00", end: hm(Math.ceil(nowMin / 30) * 30) }] : []; // 오늘은 지금 이후만
-      state[d] = { slots: freeSlots([...itemsForDate(data, d, extra), ...lb, ...past]), count: lb.length, per: {} };
+      const used = lb.reduce((x, b) => x + toMin(b.end) - toMin(b.start), 0);
+      state[d] = { slots: freeSlots([...itemsForDate(data, d, extra), ...lb, ...past]), used, per: {} };
     }
     const tasks = [];
     for (const c of courses(data, today)) {
       if (!c.deadline) continue;
       const pending = weekRange(c).filter((w) => w <= thisWeek && !(done[c.course] || []).includes(w) && !logged.has(`${c.course}|${w}`));
       const weeksLeft = Math.max(1, weekOf(data, c.deadline) - thisWeek);
-      pending.slice(0, Math.ceil(pending.length / weeksLeft)).forEach((w) => tasks.push({ course: c.course, week: w, deadline: c.deadline }));
+      pending.slice(0, Math.ceil(pending.length / weeksLeft)).forEach((w) => tasks.push({ course: c.course, week: w, deadline: c.deadline, len: c.len, level: c.level }));
     }
-    tasks.sort((a, b) => a.deadline.localeCompare(b.deadline) || a.week - b.week);
+    // 시험이 가까운 순, 같으면 어려운 과목 먼저(긴 블록이 들어갈 자리를 먼저 확보)
+    tasks.sort((a, b) => a.deadline.localeCompare(b.deadline) || b.level - a.level || a.week - b.week);
     const blocks = [], overflow = [];
     for (const t of tasks) {
       let best = null;
       for (const d of days) {
         const s = state[d];
-        if (!s || d >= t.deadline || s.count >= CAP) continue;
-        const slot = s.slots.find(([a, b]) => b - a >= STUDY_MIN);
+        if (!s || d >= t.deadline || s.used + t.len > CAP_MIN) continue;
+        const slot = s.slots.find(([a, b]) => b - a >= t.len);
         if (!slot) continue;
         // 여유 시간이 많은 날 우선, 같은 과목은 하루에 몰리지 않게
         const score = s.slots.reduce((x, [a, b]) => x + b - a, 0) - 300 * (s.per[t.course] || 0);
@@ -99,13 +104,20 @@
       if (!best) { overflow.push(t); continue; }
       const s = state[best.d];
       const a = best.slot[0];
-      best.slot[0] = a + STUDY_MIN;
-      s.count++; s.per[t.course] = (s.per[t.course] || 0) + 1;
-      blocks.push({ key: `${t.course}|${t.week}`, date: best.d, start: hm(a), end: hm(a + STUDY_MIN), course: t.course, week: t.week, type: "study" });
+      best.slot[0] = a + t.len;
+      s.used += t.len; s.per[t.course] = (s.per[t.course] || 0) + 1;
+      blocks.push({ key: `${t.course}|${t.week}`, date: best.d, start: hm(a), end: hm(a + t.len), course: t.course, week: t.week, level: t.level, type: "study" });
+    }
+    // 같은 과목은 날짜 순서대로 앞 주차부터 하도록 주차 번호를 다시 붙인다
+    const byCourse = {};
+    blocks.forEach((b) => (byCourse[b.course] ||= []).push(b));
+    for (const list of Object.values(byCourse)) {
+      const weeks = list.map((b) => b.week).sort((x, y) => x - y);
+      list.sort((x, y) => (x.date + x.start).localeCompare(y.date + y.start)).forEach((b, i) => { b.week = weeks[i]; b.key = `${b.course}|${b.week}`; });
     }
     return { blocks, overflow };
   }
 
-  const api = { pad, parse, fmt, addDays, toMin, hm, dday, mondayOf, itemsForDate, busyHours, examsOn, weekOf, courses, weekRange, freeSlots, planWeek, DAY_HOURS, STUDY_MIN, CAP };
+  const api = { pad, parse, fmt, addDays, toMin, hm, dday, mondayOf, itemsForDate, busyHours, examsOn, weekOf, courses, weekRange, freeSlots, planWeek, DAY_HOURS, STUDY_MIN, CAP_MIN, LEVEL_MIN, LEVEL_NAME };
   if (typeof module !== "undefined") module.exports = api; else root.WP = api;
 })(this);
