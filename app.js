@@ -474,6 +474,29 @@ $("import").onchange = async (e) => {
   } catch (err) { alert("백업 파일을 읽지 못했어요: " + err.message); }
 };
 
+// 2027년 첫 실행 때 한 번만: 2026년 연습 기록(일정·공부 기록·준비할 것·주차 체크·편집한 시간표)을 정리한다.
+// 지우기 전에 사본(wp.practice)을 보관해 파일로 받을 수 있게 한다. 내가 만든 탭은 날짜와 무관한 메모장이라 남긴다.
+const START = "2027-01-01";
+const before = (obj) => Object.fromEntries(Object.entries(obj).filter(([d]) => d < START));
+const after = (obj) => Object.fromEntries(Object.entries(obj).filter(([d]) => d >= START));
+if (TODAY >= START) {
+  if (!load("wp.practiceDone", false)) {
+    const sched = load("wp.schedule", {});
+    save("wp.practice", { events: myEvents.filter((e) => e.date < START), weeks: done, logs: before(logs), todos: before(todos), schedule: sched });
+    myEvents = myEvents.filter((e) => e.date >= START); done = {}; logs = after(logs); todos = after(todos);
+    save("wp.events", myEvents); save("wp.weeks", done); save("wp.logs", logs); save("wp.todos", todos); save("wp.schedule", {});
+    D = { ...window.SCHEDULE };
+    save("wp.practiceDone", true); save("wp.practiceNotice", true);
+  }
+  if (load("wp.practiceNotice", false)) {
+    $("newYear").hidden = false;
+    $("practiceDl").onclick = () => downloadBackup("work-plan-2026-연습기록", load("wp.practice", {}));
+    $("newYearClose").onclick = () => { $("newYear").hidden = true; save("wp.practiceNotice", false); };
+  }
+} else {
+  $("trial").hidden = false;
+}
+
 setTab(tab);
 renderBriefing();
 backupReminder("work-plan", myEvents.length > 0 || Object.keys(logs).length > 0 || Object.keys(done).length > 0 || Object.keys(todos).length > 0 || tabsCfg.custom.length > 0 || Object.keys(load("wp.schedule", {})).length > 0, exportAll);
