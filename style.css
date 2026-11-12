@@ -238,3 +238,18 @@ table.edit .x { border: none; background: none; color: var(--sub); box-shadow: n
 .notice.trial { background: #eef7ff; border: 1px dashed #93c5fd; color: #1e4b8f; }
 .notice.newyear { background: #fff6d6; border: 1px solid #fde49b; }
 .notice button { font-size: 12px; padding: 4px 12px; }
+
+/* 약속 · 더 한 것 · 주간 정리 */
+.ty-appt { background: #ec4899; }
+.extras { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.extras li { display: flex; gap: 6px; align-items: center; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 6px 10px; font-size: 13px; }
+.extras li .x { margin-left: auto; border: none; background: none; color: #9ca3af; box-shadow: none; padding: 0 4px; }
+.review { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.rv { border-radius: 14px; padding: 12px 14px; border: 1px solid var(--line); }
+.rv h3 { margin: 0 0 6px; font-size: 15px; display: flex; gap: 6px; align-items: baseline; }
+.rv ul { margin: 0; padding-left: 18px; font-size: 13px; display: grid; gap: 3px; }
+.rv p { margin: 6px 0 0; }
+.rv.miss { background: #fff1f3; border-color: #fecdd3; }
+.rv.carry { background: #fff7e6; border-color: #fde68a; }
+.rv.extra { background: #ecfdf5; border-color: #a7f3d0; }
+.rv.last { background: #f1f5ff; border-color: #c7d7fe; }

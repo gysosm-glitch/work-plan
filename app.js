@@ -5,16 +5,16 @@ let D = { ...window.SCHEDULE, ...load("wp.schedule", {}) };
 const TODAY = WP.fmt(new Date());
 const TYPE = {
   class: ["📚", "수업"], meeting: ["🤝", "회의"], club: ["🎸", "동아리"], work: ["💼", "아르바이트"],
-  field: ["🚗", "현장"], cert: ["📝", "자격증"], etc: ["📌", "기타"], study: ["✏️", "공부"],
+  field: ["🚗", "현장"], appt: ["📍", "약속"], cert: ["📝", "자격증"], etc: ["📌", "기타"], study: ["✏️", "공부"],
 };
 const TYPE_NAME = Object.fromEntries(Object.entries(TYPE).filter(([k]) => k !== "study").map(([k, [, n]]) => [k, n]));
-const TYPE_COLOR = { class: "#4f7cff", meeting: "#8b5cf6", club: "#10b981", work: "#f59e0b", field: "#06b6d4", cert: "#f43f5e", etc: "#94a3b8" };
+const TYPE_COLOR = { class: "#4f7cff", meeting: "#8b5cf6", club: "#10b981", work: "#f59e0b", field: "#06b6d4", appt: "#ec4899", cert: "#f43f5e", etc: "#94a3b8" };
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 const H0 = 8, H1 = 23; // 화면에 그리는 시간 범위
 
 let myEvents = load("wp.events", []);
 let done = load("wp.weeks", {});  // { 과목: [완료한 주차] }
-let logs = load("wp.logs", {});   // { 날짜: { memo, blocks: { "과목|주차": 블록 + done + note } } }
+let logs = load("wp.logs", {});   // { 날짜: { snap, blocks: { "과목|주차": 블록 + done + note }, extra: [더 한 것] } }
 let todos = load("wp.todos", {}); // { 주 월요일: [{ text, done }] }
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
 let tab = load("wp.tab", "day");
@@ -52,7 +52,7 @@ const dayAll = (date) => [...items(date), ...studyFor(date)].sort(byStart);
 const hours = (date) => WP.busyHours(dayAll(date));
 
 function logBlock(date, b, patch) {
-  const day = (logs[date] ||= { memo: "", blocks: {} });
+  const day = (logs[date] ||= { blocks: {} });
   day.blocks ||= {};
   const cur = day.blocks[b.key] || { key: b.key, course: b.course, week: b.week, start: b.start, end: b.end, type: "study", date };
   day.blocks[b.key] = { ...cur, ...patch };
@@ -127,7 +127,7 @@ function renderDay() {
     }
   }
   $("dayList").innerHTML = rows.join("") || `<li class="empty">🌿 비어 있는 날이에요. 쉬거나 밀린 공부를 해 보세요.</li>`;
-  $("memo").value = logs[sel]?.memo || "";
+  renderExtras();
   if (editing === null) $("addForm").date.value = sel;
 }
 
@@ -161,7 +161,69 @@ function renderWeek() {
     ? Object.entries(per).map(([c, n]) => `<span class="chip">✏️ ${esc(c)} <b>${n}블록</b> · ${mins[c] / 60}시간</span>`).join("")
     : `<span class="muted">이번 주에 배분할 공부가 없어요. 🎉</span>`) +
     (p.overflow.length ? `<p class="warn">⏩ 이번 주 빈 시간에 다 못 넣은 공부: ${p.overflow.map((t) => `${esc(t.course)} ${t.week}주차`).join(", ")} → 체크하지 않으면 다음 주 계획에 자동으로 들어가요.</p>` : "");
+  renderReview(mon, days);
 }
+
+// 🔁 이번 주 정리: 못 한 공부 / 이월된 준비할 것 / 이번 주·지난주에 더 한 것
+function renderReview(mon, days) {
+  const miss = missed();
+  const carried = todosFor(mon).filter((t) => t.carry && !t.done);
+  const extrasIn = (ds) => ds.flatMap((d) => (logs[d]?.extra || []).map((x) => ({ d, ...x })));
+  const thisEx = extrasIn(days), lastEx = extrasIn(Array.from({ length: 7 }, (_, i) => WP.addDays(mon, i - 7)));
+  const exLi = (x) => `<li><span class="muted small">${label(x.d)}</span> ${esc(x.course)}${x.week ? ` ${x.week}주차` : ""}${x.note ? ` · ${esc(x.note)}` : ""}</li>`;
+  const box = (cls, title, body, empty) => `<div class="rv ${cls}"><h3>${title}</h3>${body || `<p class="muted small">${empty}</p>`}</div>`;
+  $("review").innerHTML =
+    box("miss", `❌ 못 한 공부 <span class="muted small">${miss.length}개</span>`, miss.length ? `<ul>${miss.map((b) => `<li><span class="muted small">${label(b.date)}</span> ${esc(b.course)} ${b.week}주차</li>`).join("")}</ul><p class="muted small">체크하지 않은 주차는 다음 주 계획에 자동으로 다시 들어가요.</p>` : "", "밀린 공부가 없어요 👏") +
+    box("carry", `⏩ 이월된 준비할 것 <span class="muted small">${carried.length}개</span>`, carried.length ? `<ul>${carried.map((t) => `<li>${esc(t.text)}</li>`).join("")}</ul>` : "", "지난주에서 넘어온 항목이 없어요") +
+    box("extra", `➕ 이번 주에 더 한 것 <span class="muted small">${thisEx.length}개</span>`, thisEx.length ? `<ul>${thisEx.map(exLi).join("")}</ul>` : "", "일간 계획에서 기록할 수 있어요") +
+    box("last", `📌 지난주에 더 한 것 <span class="muted small">${lastEx.length}개</span>`, lastEx.length ? `<ul>${lastEx.map(exLi).join("")}</ul>` : "", "기록 없음");
+}
+
+// 지난 날 확정된 공부 블록 중 완료하지 못했고, 아직 시험이 남은 과목의 주차
+function missed() {
+  const live = new Map(WP.courses(D, TODAY).filter((c) => c.deadline).map((c) => [c.course, c]));
+  const m = new Map();
+  for (const [d, v] of Object.entries(logs)) {
+    if (d >= TODAY) continue;
+    for (const b of Object.values(v.blocks || {})) {
+      if (!b.done && !isDone(b.course, b.week) && live.get(b.course)?.lastWeek >= b.week) m.set(b.key, { ...b, date: d });
+    }
+  }
+  return [...m.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/* ---------- ➕ 계획보다 더 한 것 ---------- */
+function extraWeeks() {
+  const c = WP.courses(D, TODAY).find((x) => x.course === $("extraCourse").value);
+  $("extraWeek").innerHTML = `<option value="">주차 선택 안 함</option>` + (c ? WP.weekRange(c).filter((w) => !isDone(c.course, w)).map((w) => `<option value="${w}">${w}주차</option>`).join("") : "");
+}
+function renderExtras() {
+  const keep = $("extraCourse").value;
+  const cs = WP.courses(D, TODAY).filter((c) => c.deadline).map((c) => c.course);
+  $("extraCourse").innerHTML = cs.map((c) => `<option${c === keep ? " selected" : ""}>${esc(c)}</option>`).join("") + `<option value="기타"${keep === "기타" ? " selected" : ""}>기타 (과목 외)</option>`;
+  extraWeeks();
+  const list = logs[sel]?.extra || [];
+  $("extraList").innerHTML = list.map((x, i) => `<li>➕ <b>${esc(x.course)}</b>${x.week ? ` ${x.week}주차` : ""}${x.note ? ` · ${esc(x.note)}` : ""}<button class="x" data-i="${i}" aria-label="삭제">✕</button></li>`).join("");
+}
+$("extraCourse").onchange = extraWeeks;
+$("extraForm").onsubmit = (e) => {
+  e.preventDefault();
+  const course = $("extraCourse").value, week = +$("extraWeek").value || 0, note = e.target.note.value.trim();
+  if (!week && !note) return alert("주차를 고르거나 내용을 적어 주세요.");
+  const day = (logs[sel] ||= { blocks: {} });
+  (day.extra ||= []).push({ course, week, note });
+  save("wp.logs", logs);
+  if (week) setWeekDone(course, week, true);
+  e.target.note.value = "";
+  refresh();
+};
+$("extraList").onclick = (e) => {
+  const b = e.target.closest(".x"); if (!b) return;
+  const x = logs[sel].extra.splice(+b.dataset.i, 1)[0];
+  save("wp.logs", logs);
+  if (x.week) setWeekDone(x.course, x.week, false); // 기록을 지우면 완료 처리도 되돌림
+  refresh();
+};
 
 /* ---------- 월간 ---------- */
 function renderCal() {
@@ -176,7 +238,7 @@ function renderCal() {
     const cls = ["day", `l${level(h)}`, d.slice(0, 7) !== view && "out", d === TODAY && "today", d === sel && "sel"].filter(Boolean).join(" ");
     const ex = WP.examsOn(D, d).map((e) => `<span class="ex" title="${esc(e.course)} ${esc(e.kind)}">🎯 ${esc(e.course)}</span>`).join("");
     const alt = D.exams.filter((e) => e.alt === d).map((e) => `<span class="ex alt" title="후보일">${esc(e.course)}?</span>`).join("");
-    const memo = logs[d]?.memo ? `<span class="memo" title="하루 기록 있음">📝</span>` : "";
+    const memo = logs[d]?.extra?.length ? `<span class="memo" title="계획보다 더 한 것 있음">➕</span>` : "";
     html += `<button class="${cls}" data-d="${d}" aria-label="${label(d)} ${h}시간"><span class="n">${+d.slice(8)}</span>${h ? `<span class="h">${h}h</span>` : ""}${memo}${ex}${alt}</button>`;
   }
   $("cal").innerHTML = html;
@@ -209,7 +271,7 @@ function renderCourses() {
 function todosFor(mon) {
   if (todos[mon]) return todos[mon].map((t) => ({ ...t }));
   const prev = Object.keys(todos).filter((k) => k < mon).sort().pop();
-  return (prev ? todos[prev].map((t) => t.text) : DEFAULT_TODOS).map((text) => ({ text, done: false }));
+  return prev ? todos[prev].map((t) => ({ text: t.text, done: false, carry: !t.done })) : DEFAULT_TODOS.map((text) => ({ text, done: false }));
 }
 function renderTodos() {
   const mon = WP.mondayOf(sel), list = todosFor(mon);
@@ -267,6 +329,7 @@ function renderPanel() {
 const checkItems = (list, empty) => list.map((t, i) => `<li class="${t.done ? "fin" : ""}">
     <input type="checkbox" data-i="${i}"${t.done ? " checked" : ""} aria-label="${esc(t.text)} 완료">
     <input class="tx" data-i="${i}" value="${esc(t.text)}" aria-label="항목 내용">
+    ${t.carry ? '<span class="badge b-amber" title="지난주에 못 해서 넘어온 항목">⏩ 이월</span>' : ""}
     <button class="x" data-i="${i}" aria-label="${esc(t.text)} 삭제">✕</button></li>`).join("") || `<li class="muted">${empty}</li>`;
 
 function renderCustom(c) {
@@ -353,10 +416,6 @@ $("dayList").addEventListener("change", (e) => {
   }
   refresh();
 });
-$("memo").onchange = (e) => {
-  const day = (logs[sel] ||= { memo: "", blocks: {} });
-  day.memo = e.target.value; save("wp.logs", logs);
-};
 $("courses").onclick = (e) => {
   const b = e.target.closest(".wk"); if (!b) return;
   setWeekDone(b.dataset.c, +b.dataset.w, !isDone(b.dataset.c, +b.dataset.w));
@@ -497,6 +556,15 @@ if (TODAY >= START) {
   $("trial").hidden = false;
 }
 
+const hasData = myEvents.length > 0 || Object.keys(logs).length > 0 || Object.keys(done).length > 0 || Object.keys(todos).length > 0 || tabsCfg.custom.length > 0 || Object.keys(load("wp.schedule", {})).length > 0;
+
+// 오늘 공부 계획은 그날 처음 열 때 확정한다. 날이 지나도 완료 체크가 없으면 "못 한 공부"로 남고 다음 주로 넘어간다.
+if (!logs[TODAY]?.snap) {
+  plan(WP.mondayOf(TODAY)).blocks.filter((b) => b.date === TODAY).forEach((b) => logBlock(TODAY, b, { done: false }));
+  (logs[TODAY] ||= { blocks: {} }).snap = true;
+  save("wp.logs", logs); invalidate();
+}
+
 setTab(tab);
 renderBriefing();
-backupReminder("work-plan", myEvents.length > 0 || Object.keys(logs).length > 0 || Object.keys(done).length > 0 || Object.keys(todos).length > 0 || tabsCfg.custom.length > 0 || Object.keys(load("wp.schedule", {})).length > 0, exportAll);
+backupReminder("work-plan", hasData, exportAll);

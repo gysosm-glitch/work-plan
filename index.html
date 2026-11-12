@@ -64,20 +64,29 @@
         <p class="muted small hint">✏️ 공부 블록은 주간 계획에서 자동으로 배분돼요. 다 끝낸 주차는 <b>주차 완료</b>를 체크하고, 어디까지 했는지 적어 두세요.</p>
       </section>
       <section class="card side">
-        <h2>📝 하루 기록</h2>
-        <textarea id="memo" rows="4" placeholder="오늘 공부한 것, 컨디션, 내일 할 일 등을 자유롭게 적어요." aria-label="하루 기록"></textarea>
-        <h2 class="mt">➕ 일정 추가</h2>
+        <h2>📍 특이사항</h2>
         <form class="form" id="addForm">
-          <input class="full" name="title" placeholder="예: 정보처리기사 필기, 팀플 회의" required aria-label="일정 이름">
+          <input class="full" name="title" placeholder="예: 친구 약속, 병원 예약, 가족 행사" required aria-label="특이사항">
           <input name="date" type="date" required aria-label="날짜">
           <select name="type" aria-label="종류">
-            <option value="cert">📝 자격증</option><option value="etc">📌 기타</option><option value="meeting">🤝 회의</option><option value="work">💼 아르바이트</option><option value="class">📚 수업</option><option value="club">🎸 동아리</option><option value="field">🚗 현장</option>
+            <option value="appt">📍 약속</option><option value="cert">📝 자격증</option><option value="etc">📌 기타</option><option value="meeting">🤝 회의</option><option value="work">💼 아르바이트</option><option value="club">🎸 동아리</option><option value="field">🚗 현장</option><option value="class">📚 수업</option>
           </select>
-          <input name="start" type="time" value="10:00" required aria-label="시작 시간">
-          <input name="end" type="time" value="12:00" required aria-label="종료 시간">
-          <button class="primary" id="addBtn">일정 추가</button>
+          <input name="start" type="time" value="18:00" required aria-label="시작 시간">
+          <input name="end" type="time" value="20:00" required aria-label="종료 시간">
+          <button class="primary" id="addBtn">특이사항 추가</button>
           <button type="button" id="cancelEdit" hidden>수정 취소</button>
         </form>
+        <p class="muted small hint">넣은 시간에는 공부 블록이 배분되지 않아요.</p>
+
+        <h2 class="mt">➕ 계획보다 더 한 것</h2>
+        <form class="form" id="extraForm">
+          <select name="course" id="extraCourse" aria-label="과목"></select>
+          <select name="week" id="extraWeek" aria-label="주차"></select>
+          <input class="full" name="note" placeholder="예: 5주차 실습까지 미리 끝냄" maxlength="60" aria-label="더 한 내용">
+          <button class="primary full">더 한 것 기록</button>
+        </form>
+        <ul class="extras" id="extraList"></ul>
+        <p class="muted small hint">주차를 고르면 그 주차가 완료로 처리돼서 다음 공부 계획에서 빠져요.</p>
       </section>
     </div>
 
@@ -86,6 +95,7 @@
       <h2 class="navh"><button class="nav" data-week="-7" aria-label="지난주">‹</button><span id="weekTitle"></span><button class="nav" data-week="7" aria-label="다음주">›</button>
         <span class="right legend"><span><i class="sw study"></i>✏️ 자동 배분된 공부</span><span><i class="sw fixed"></i>고정·내 일정</span></span></h2>
       <div class="weeksum" id="weekSum"></div>
+      <div class="review" id="review"></div>
       <div class="scroll"><div class="tt" id="tt"></div></div>
     </section>
 
