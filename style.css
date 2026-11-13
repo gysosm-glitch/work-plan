@@ -333,3 +333,30 @@ table.edit .x { border: none; background: none; color: var(--sub); box-shadow: n
 #weekAdd { margin-left: 6px; }
 table.edit select[name=type] { min-width: 120px; }
 table.edit input[name=from] { width: 70px; }
+
+:root { --accent: #4338ca; --accent-2: #7c3aed; }
+.brief .acct { margin-left: 4px; }
+
+/* 🔒 로그인 화면 */
+.lock { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+.lock-card { width: min(380px, 100%); background: #fff; color: #1f1d3a; border-radius: 20px; padding: 28px 24px; display: grid; gap: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, .25); }
+.lock-card h1 { margin: 0; font-size: 26px; color: var(--accent); }
+.lock-sub { margin: 0 0 4px; color: #6e6a8f; font-size: 14px; }
+.lock-card label { display: grid; gap: 4px; font-size: 13px; color: #6e6a8f; }
+.lock-card input:not([type=checkbox]) { font: inherit; padding: 10px 12px; border: 1px solid #e3e1ef; border-radius: 10px; }
+.lock-card .lock-keep { display: flex; gap: 6px; align-items: center; }
+.lock-err { margin: 0; min-height: 18px; color: #d6264a; font-size: 13px; }
+.lock-go { font: inherit; font-weight: 700; padding: 12px; border: none; border-radius: 12px; background: var(--accent); color: #fff; cursor: pointer; }
+.lock-forgot { font: inherit; font-size: 12px; border: none; background: none; color: #6e6a8f; cursor: pointer; }
+.lock-note { margin: 0; font-size: 11px; color: #9a96b8; text-align: center; }
+
+/* 📗 엑셀 DB · 로그아웃 */
+.acct { display: flex; gap: 6px; align-items: center; position: relative; }
+.xl { position: relative; }
+.xl-btn, .ghostbtn { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .15); color: #fff; cursor: pointer; white-space: nowrap; }
+.xl-btn[data-state=need], .xl-btn[data-state=error] { background: #fff3cd; color: #8a5a00; border-color: #f5d27a; }
+.xl-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 230px; background: #fff; color: #1f1d3a; border: 1px solid #e3e1ef; border-radius: 12px; padding: 6px; display: grid; gap: 2px; box-shadow: 0 10px 30px rgba(0, 0, 0, .18); }
+.xl-menu button { font: inherit; font-size: 13px; text-align: left; padding: 8px 10px; border: none; border-radius: 8px; background: none; color: inherit; cursor: pointer; box-shadow: none; }
+.xl-menu button:hover { background: #f1eefb; }
+.xl-menu button.primary { background: var(--accent); color: #fff; }
+.xl-menu p { margin: 4px 6px; font-size: 11px; color: #6e6a8f; }

@@ -1,4 +1,8 @@
 import { load, save, downloadBackup, backupReminder } from "./db.js";
+import { requireLogin, logout } from "./auth.js";
+import { initExcel } from "./excel.js";
+
+await requireLogin("wp", "💼 Work Plan"); // 로그인하기 전에는 아래가 실행되지 않는다
 
 // 앱에서 편집한 시간표·시험이 있으면 data.js 기본값보다 우선
 let D = { ...window.SCHEDULE, ...load("wp.schedule", {}) };
@@ -545,3 +549,15 @@ addEventListener("hashchange", () => { const t = location.hash.slice(1); if (t &
 setTab(location.hash.slice(1) || tab, false);
 renderBriefing();
 backupReminder("work-plan", hasData, exportAll);
+
+// 📗 엑셀 DB: 사람이 보기 좋은 시트들(복원은 _data 시트로)
+initExcel({
+  prefix: "wp", appName: "WorkPlan", el: $("xl"),
+  sheets: () => ({
+    일정: [...myEvents].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => ({ 날짜: e.date, 시작: e.start, 끝: e.end, 이름: e.title, 종류: TYPE_NAME[e.type] || e.type })),
+    반복일정: D.weekly.map((w) => ({ 요일: DOW[w.day], 시작: w.start, 끝: w.end, 이름: w.title, 종류: TYPE_NAME[w.type] || w.type, 끝나는날: w.until || "" })),
+    마감: D.exams.map((e) => ({ 이름: e.course, 종류: e.kind, 날짜: e.date, 후보날짜: e.alt || "", 진도시작주차: e.from || (e.noMidterm ? 1 : 9) })),
+    진도: trackList().flatMap((x) => x.units.map((u) => ({ 항목: x.name, 칸: x.flex ? x.labels[u] : `${u}${x.unit}`, 진도: `${curPct(x.key, u)}%`, 회독: roundsOf(x.key, u), 메모: (notes[x.key] || {})[u] || "" }))),
+  }),
+});
+$("logout").onclick = () => logout("wp");

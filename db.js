@@ -6,8 +6,11 @@ export function load(k, d) {
   try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; }
 }
 
+let afterSave = null; // 엑셀 파일 자동 저장 등, 저장할 때마다 부를 함수
+export const onSave = (fn) => (afterSave = fn);
+
 export function save(k, v) {
-  try { localStorage.setItem(k, JSON.stringify(v)); }
+  try { localStorage.setItem(k, JSON.stringify(v)); afterSave?.(); }
   catch (e) { alert("저장하지 못했어요(시크릿 모드이거나 저장 공간이 꺼져 있을 수 있어요): " + e.message); }
 }
 
