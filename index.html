@@ -108,7 +108,7 @@
         <input name="count" type="number" min="1" max="60" value="10" required aria-label="개수">
         <button class="primary">추가</button>
       </form>
-      <p class="muted small hint">📘 과목은 중간고사가 없으면 1주차부터, 봤으면 9주차부터 시험 전 주까지 나와요. 칸마다 복습한 만큼 %를 골라 주세요.</p>
+      <p class="muted small hint">📘 과목은 중간고사가 없으면 1주차부터, 봤으면 9주차부터 시험 전 주까지 나와요. 칸을 누르면 이번 회독 진도 %, 회독 수, 어디까지 했는지를 기록해요.</p>
       <div class="courses" id="courses"></div>
     </section>
 
@@ -149,6 +149,17 @@
       </div>
     </form>
   </dialog>
+  <dialog id="unitDlg" aria-labelledby="unitTitle">
+    <form id="unitForm" class="tabform">
+      <h2 id="unitTitle"></h2>
+      <label>이번 회독 진도 <select name="pct" aria-label="이번 회독 진도"></select></label>
+      <div class="roundrow"><span>회독 수</span><button type="button" data-r="-1" aria-label="회독 하나 빼기">−</button><b id="roundV">0</b><span>회독</span><button type="button" data-r="1" aria-label="회독 하나 더하기">＋</button></div>
+      <label>어디까지 했는지 <input name="note" maxlength="60" placeholder="예: 슬라이드 1~20p, 기출 30번까지"></label>
+      <p class="muted small">한 바퀴를 다 끝냈으면 <b>✅ 1회독 완료</b>를 누르세요. 회독 수가 1 올라가고, 진도는 0%로 돌아가 다음 회독을 시작해요.</p>
+      <div class="actions"><button type="button" id="roundDone">✅ 1회독 완료</button><span class="grow"></span><button type="button" id="unitCancel">취소</button><button class="primary">저장</button></div>
+    </form>
+  </dialog>
+
   <dialog id="tabDlg" aria-labelledby="tabDlgTitle">
     <form id="tabForm" class="tabform">
       <h2 id="tabDlgTitle">＋ 탭 추가</h2>

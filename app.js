@@ -15,6 +15,8 @@ const H0 = 8, H1 = 23; // 화면에 그리는 시간 범위
 let myEvents = load("wp.events", []);
 let done = load("wp.weeks", {});  // { 과목: [완료한 주차] }
 let prog = load("wp.wprog", {}); // { 과목 또는 "t:항목id": { 주차·단위: 복습 진도% } } — 100%면 done에도 들어간다
+let rounds = load("wp.rounds", {}); // { 항목키: { 단위: 회독 수 } }
+let notes = load("wp.notes", {});   // { 항목키: { 단위: "어디까지 했는지" } }
 let trackers = load("wp.trackers", []); // 자격증·책 등 직접 만든 진도 항목: { id, name, emoji, unit, count }
 let logs = load("wp.logs", {});   // 예전 자동 배분 기록(지금은 백업·초기화용으로만 보관)
 let todos = load("wp.todos", {}); // { 주 월요일: [{ text, done }] }
@@ -35,12 +37,15 @@ const isDone = (c, w) => (done[c] || []).includes(w);
 const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
 const hours = (date) => WP.busyHours(items(date));
 
-const pctOf = (c, w) => (isDone(c, w) ? 100 : (prog[c] || {})[w] || 0);
-// 주차 진행률 저장: 100%면 완료, 아니면 완료 해제
+const roundsOf = (k, u) => (rounds[k] || {})[u] || 0;
+const curPct = (k, u) => (prog[k] || {})[u] ?? (isDone(k, u) && !roundsOf(k, u) ? 100 : 0); // 이번 회독 진도
+// 막대·평균용: 한 번이라도 끝냈으면(1회독 이상) 100으로 본다
+const pctOf = (k, u) => (roundsOf(k, u) >= 1 ? 100 : curPct(k, u));
+// 이번 회독 진도 저장: 100%이거나 1회독 이상이면 완료
 function setPct(course, week, v) {
   (prog[course] ||= {})[week] = v;
   save("wp.wprog", prog);
-  setWeekDone(course, week, v === 100);
+  setWeekDone(course, week, v === 100 || roundsOf(course, week) >= 1);
 }
 
 function setWeekDone(course, week, on) {
@@ -156,31 +161,55 @@ function renderCourses() {
       ? `<span class="badge ${c.noMidterm ? "b-red" : "b-blue"}">${c.noMidterm ? "중간고사 없음 · 1주차부터" : "중간고사 봄 · 9주차부터"}</span>`
       : `<button class="x tdel" data-id="${x.id}" aria-label="${esc(x.name)} 항목 삭제" title="항목 삭제">✕</button>`;
     const cells = x.units.map((u) => {
-      const p = pctOf(x.key, u);
-      return `<label class="wk${p === 100 ? " on" : ""}${c && u > cw ? " future" : ""}" style="--p:${p}%"><span>${u}${esc(x.unit)}</span>
-        <select data-k="${esc(x.key)}" data-u="${u}" aria-label="${esc(x.name)} ${u}${esc(x.unit)} 복습 진도">${PCTS.map((v) => `<option value="${v}"${v === p ? " selected" : ""}>${v}%</option>`).join("")}</select></label>`;
+      const p = curPct(x.key, u), r = roundsOf(x.key, u), n = (notes[x.key] || {})[u] || "";
+      return `<button class="wk${r ? " on" : ""}${c && u > cw ? " future" : ""}" style="--p:${p}%" data-k="${esc(x.key)}" data-u="${u}" data-name="${esc(x.name)}" data-unit="${esc(x.unit)}"
+        title="${n ? esc(n) : "눌러서 진도·회독·메모 기록"}"><span>${u}${esc(x.unit)}</span>${r ? `<b class="rd">${r}회독</b>` : ""}<small>${p}%</small>${n ? '<i class="nt">📝</i>' : ""}</button>`;
     }).join("");
+    const rs = x.units.map((u) => roundsOf(x.key, u)), avgR = rs.length ? (rs.reduce((a, b) => a + b, 0) / rs.length).toFixed(1) : 0;
     return `<article class="card course">
       <header><h3>${x.emoji} ${esc(x.name)}</h3>${head}</header>
       ${exams.length ? `<div class="exl">${exams.map((e) => `<span class="${e.date < TODAY ? "past" : ""}">🎯 ${esc(e.kind)} ${label(e.date)}${e.alt ? ` 또는 ${label(e.alt)}` : ""} <b>${e.date < TODAY ? "종료" : ddayTxt(WP.dday(TODAY, e.date))}</b></span>`).join("")}</div>` : ""}
       <div class="pbar"><i style="width:${x.pct}%"></i></div>
-      <p class="small muted">복습 진도 <b>${x.pct}%</b> · ${fin} / ${x.units.length}${esc(x.unit)} 완료</p>
+      <p class="small muted">진도 <b>${x.pct}%</b> · ${fin} / ${x.units.length}${esc(x.unit)} 끝냄 · 평균 <b>${avgR}회독</b></p>
       <div class="weeks">${cells}</div>
     </article>`;
   }).join("") || `<p class="muted">아직 진도 항목이 없어요. 위에서 추가하거나 ⚙️ 시간표·시험 편집에서 시험을 넣어 주세요.</p>`;
 }
-$("courses").onchange = (e) => {
-  const sl = e.target.closest("select[data-k]"); if (!sl) return;
-  setPct(sl.dataset.k, +sl.dataset.u, +sl.value);
-  render();
-};
+// 칸을 누르면 편집 창: 이번 회독 진도 %, 회독 수, 어디까지 했는지
+let unitSel = null, roundTmp = 0;
+const showRound = () => ($("roundV").textContent = roundTmp);
+$("courses").addEventListener("click", (e) => {
+  const b = e.target.closest(".wk"); if (!b) return;
+  unitSel = { k: b.dataset.k, u: +b.dataset.u };
+  roundTmp = roundsOf(unitSel.k, unitSel.u);
+  $("unitTitle").textContent = `${b.dataset.name} · ${unitSel.u}${b.dataset.unit}`;
+  $("unitForm").pct.innerHTML = PCTS.map((v) => `<option value="${v}">${v}%</option>`).join("");
+  $("unitForm").pct.value = curPct(unitSel.k, unitSel.u);
+  $("unitForm").note.value = (notes[unitSel.k] || {})[unitSel.u] || "";
+  showRound();
+  $("unitDlg").showModal();
+});
+$("unitForm").addEventListener("click", (e) => {
+  const r = e.target.closest("[data-r]"); if (r) { roundTmp = Math.max(0, roundTmp + +r.dataset.r); showRound(); }
+});
+function saveUnit(pct) {
+  const { k, u } = unitSel;
+  (rounds[k] ||= {})[u] = roundTmp; save("wp.rounds", rounds);
+  (notes[k] ||= {})[u] = $("unitForm").note.value.trim(); save("wp.notes", notes);
+  setPct(k, u, pct);
+  $("unitDlg").close(); render();
+}
+$("unitForm").onsubmit = (e) => { e.preventDefault(); saveUnit(+e.target.pct.value); };
+// 한 바퀴 끝: 회독 +1, 진도는 0%로 돌려 다음 회독 시작
+$("roundDone").onclick = () => { roundTmp += 1; saveUnit(0); };
+$("unitCancel").onclick = () => $("unitDlg").close();
 $("courses").onclick = (e) => {
   const b = e.target.closest(".tdel"); if (!b) return;
   const t = trackers.find((x) => x.id === b.dataset.id);
   if (!confirm(`"${t.name}" 진도 항목을 삭제할까요? 기록한 %도 함께 지워져요.`)) return;
   trackers = trackers.filter((x) => x.id !== t.id);
-  delete prog[`t:${t.id}`]; delete done[`t:${t.id}`];
-  save("wp.trackers", trackers); save("wp.wprog", prog); save("wp.weeks", done);
+  for (const m of [prog, done, rounds, notes]) delete m[`t:${t.id}`];
+  save("wp.trackers", trackers); save("wp.wprog", prog); save("wp.weeks", done); save("wp.rounds", rounds); save("wp.notes", notes);
   render();
 };
 $("trackForm").onsubmit = (e) => {
@@ -438,7 +467,7 @@ $("resetSetup").onclick = () => {
 };
 
 /* ---------- 백업 ---------- */
-const exportAll = () => downloadBackup("work-plan", { events: myEvents, weeks: done, wprog: prog, trackers, logs, todos, tabs: tabsCfg, schedule: load("wp.schedule", {}) });
+const exportAll = () => downloadBackup("work-plan", { events: myEvents, weeks: done, wprog: prog, rounds, notes, trackers, logs, todos, tabs: tabsCfg, schedule: load("wp.schedule", {}) });
 $("export").onclick = exportAll;
 $("import").onchange = async (e) => {
   const file = e.target.files[0]; e.target.value = "";
@@ -447,7 +476,7 @@ $("import").onchange = async (e) => {
     const d = JSON.parse(await file.text());
     if (!Array.isArray(d.events) || !d.events.every((x) => x.date && x.start && x.end && x.title)) throw new Error("형식이 맞지 않아요");
     if (!confirm(`백업으로 지금 기록을 바꿀까요? (일정 ${d.events.length}건) 현재 기록은 사라져요.`)) return;
-    myEvents = d.events; done = d.weeks || {}; prog = d.wprog || {}; save("wp.wprog", prog); trackers = d.trackers || []; save("wp.trackers", trackers); logs = d.logs || {}; todos = d.todos || {}; if (d.tabs) { tabsCfg = d.tabs; saveTabs(); }
+    myEvents = d.events; done = d.weeks || {}; prog = d.wprog || {}; save("wp.wprog", prog); trackers = d.trackers || []; save("wp.trackers", trackers); rounds = d.rounds || {}; save("wp.rounds", rounds); notes = d.notes || {}; save("wp.notes", notes); logs = d.logs || {}; todos = d.todos || {}; if (d.tabs) { tabsCfg = d.tabs; saveTabs(); }
     save("wp.events", myEvents); save("wp.weeks", done); save("wp.logs", logs); save("wp.todos", todos);
     if (d.schedule) { save("wp.schedule", d.schedule); D = { ...window.SCHEDULE, ...d.schedule }; }
     refresh();
@@ -464,7 +493,7 @@ if (TODAY >= START) {
     const sched = load("wp.schedule", {});
     save("wp.practice", { events: myEvents.filter((e) => e.date < START), weeks: done, wprog: prog, logs: before(logs), todos: before(todos), schedule: sched });
     myEvents = myEvents.filter((e) => e.date >= START); const keepT = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => k.startsWith("t:")));
-    done = keepT(done); prog = keepT(prog); save("wp.wprog", prog); logs = after(logs); todos = after(todos);
+    done = keepT(done); prog = keepT(prog); rounds = keepT(rounds); notes = keepT(notes); save("wp.wprog", prog); save("wp.rounds", rounds); save("wp.notes", notes); logs = after(logs); todos = after(todos);
     save("wp.events", myEvents); save("wp.weeks", done); save("wp.logs", logs); save("wp.todos", todos); save("wp.schedule", {});
     D = { ...window.SCHEDULE };
     save("wp.practiceDone", true); save("wp.practiceNotice", true);
