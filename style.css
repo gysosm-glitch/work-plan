@@ -290,3 +290,9 @@ table.edit .x { border: none; background: none; color: var(--sub); box-shadow: n
 .roundrow button { width: 34px; height: 34px; padding: 0; font-size: 18px; border-radius: 50%; }
 
 #p-day { display: grid; gap: 18px; }
+
+/* 매주 관리 활동 */
+.wk.now { outline: 2px solid var(--sun); outline-offset: 1px; }
+#unitForm.weekly .roundrow, #unitForm.weekly #roundDone, #unitForm.weekly .rhint { display: none; }
+.wkchk { display: flex; gap: 5px; align-items: center; font-size: 13px; }
+.track-add:has(input[name=weekly]:checked) input[name=unit], .track-add:has(input[name=weekly]:checked) input[name=count] { display: none; }

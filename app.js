@@ -17,7 +17,13 @@ let done = load("wp.weeks", {});  // { 과목: [완료한 주차] }
 let prog = load("wp.wprog", {}); // { 과목 또는 "t:항목id": { 주차·단위: 복습 진도% } } — 100%면 done에도 들어간다
 let rounds = load("wp.rounds", {}); // { 항목키: { 단위: 회독 수 } }
 let notes = load("wp.notes", {});   // { 항목키: { 단위: "어디까지 했는지" } }
-let trackers = load("wp.trackers", []); // 자격증·책 등 직접 만든 진도 항목: { id, name, emoji, unit, count }
+let trackers = load("wp.trackers", []);
+if (!load("wp.actsSeeded", false)) {
+  [["AX 프로젝트·스터디", "🤖"], ["동아리", "🎸"]].forEach(([name, emoji], i) => {
+    if (!trackers.some((t) => t.name === name)) trackers.push({ id: String(Date.now() + i), name, emoji, unit: "주", count: 0, weekly: true });
+  });
+  save("wp.trackers", trackers); save("wp.actsSeeded", true);
+} // 자격증·책 등 직접 만든 진도 항목: { id, name, emoji, unit, count }
 let logs = load("wp.logs", {});   // 예전 자동 배분 기록(지금은 백업·초기화용으로만 보관)
 let todos = load("wp.todos", {}); // { 주 월요일: [{ text, done }] }
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
@@ -146,8 +152,13 @@ function renderCal() {
 const PCTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 function trackList() {
   const cs = WP.courses(D, TODAY).map((c) => ({ key: c.course, name: c.course, emoji: "📘", unit: "주", units: WP.weekRange(c), course: c }));
-  const ts = trackers.map((t) => ({ key: `t:${t.id}`, name: t.name, emoji: t.emoji, unit: t.unit, units: Array.from({ length: t.count }, (_, i) => i + 1), id: t.id }));
-  return [...cs, ...ts].map((x) => ({ ...x, pct: x.units.length ? Math.round(x.units.reduce((a, u) => a + pctOf(x.key, u), 0) / x.units.length) : 0 }));
+  const lastW = WP.weekOf(D, D.semester.end), cw = WP.weekOf(D, TODAY);
+  const ts = trackers.map((t) => ({ key: `t:${t.id}`, name: t.name, emoji: t.emoji, id: t.id, weekly: !!t.weekly,
+    unit: t.weekly ? "주" : t.unit, units: Array.from({ length: t.weekly ? lastW : t.count }, (_, i) => i + 1) }));
+  return [...cs, ...ts].map((x) => {
+    const us = x.weekly ? x.units.filter((u) => u <= Math.max(1, cw)) : x.units;
+    return { ...x, pct: us.length ? Math.round(us.reduce((a, u) => a + pctOf(x.key, u), 0) / us.length) : 0 };
+  });
 }
 // list: 그릴 항목들, el: 넣을 곳
 function renderTracks(list, el, empty) {
@@ -161,15 +172,17 @@ function renderTracks(list, el, empty) {
       : `<button class="x tdel" data-id="${x.id}" aria-label="${esc(x.name)} 항목 삭제" title="항목 삭제">✕</button>`;
     const cells = x.units.map((u) => {
       const p = curPct(x.key, u), r = roundsOf(x.key, u), n = (notes[x.key] || {})[u] || "";
-      return `<button class="wk${r ? " on" : ""}${c && u > cw ? " future" : ""}" style="--p:${p}%" data-k="${esc(x.key)}" data-u="${u}" data-name="${esc(x.name)}" data-unit="${esc(x.unit)}"
-        title="${n ? esc(n) : "눌러서 진도·회독·메모 기록"}"><span>${u}${esc(x.unit)}</span>${r ? `<b class="rd">${r}회독</b>` : ""}<small>${p}%</small>${n ? '<i class="nt">📝</i>' : ""}</button>`;
+      return `<button class="wk${r || (x.weekly && p === 100) ? " on" : ""}${(c || x.weekly) && u > cw ? " future" : ""}${x.weekly && u === cw ? " now" : ""}" style="--p:${p}%" data-k="${esc(x.key)}" data-u="${u}" data-name="${esc(x.name)}" data-unit="${esc(x.unit)}"${x.weekly ? ' data-weekly="1"' : ""}
+        title="${n ? esc(n) : x.weekly ? "눌러서 준비 % · 어디까지 했는지 기록" : "눌러서 진도·회독·메모 기록"}"><span>${u}${esc(x.unit)}</span>${r ? `<b class="rd">${r}회독</b>` : ""}<small>${p}%</small>${n ? '<i class="nt">📝</i>' : ""}</button>`;
     }).join("");
     const rs = x.units.map((u) => roundsOf(x.key, u)), avgR = rs.length ? (rs.reduce((a, b) => a + b, 0) / rs.length).toFixed(1) : 0;
     return `<article class="card course">
       <header><h3>${x.emoji} ${esc(x.name)}</h3>${head}</header>
       ${exams.length ? `<div class="exl">${exams.map((e) => `<span class="${e.date < TODAY ? "past" : ""}">🎯 ${esc(e.kind)} ${label(e.date)}${e.alt ? ` 또는 ${label(e.alt)}` : ""} <b>${e.date < TODAY ? "종료" : ddayTxt(WP.dday(TODAY, e.date))}</b></span>`).join("")}</div>` : ""}
       <div class="pbar"><i style="width:${x.pct}%"></i></div>
-      <p class="small muted">진도 <b>${x.pct}%</b> · ${fin} / ${x.units.length}${esc(x.unit)} 끝냄 · 평균 <b>${avgR}회독</b></p>
+      ${x.weekly
+        ? `<p class="small muted">이번 주(${cw}주차) 준비 <b>${curPct(x.key, cw)}%</b>${(notes[x.key] || {})[cw] ? ` · 📝 ${esc(notes[x.key][cw])}` : ""} · 지금까지 평균 <b>${x.pct}%</b></p>`
+        : `<p class="small muted">진도 <b>${x.pct}%</b> · ${fin} / ${x.units.length}${esc(x.unit)} 끝냄 · 평균 <b>${avgR}회독</b></p>`}
       <div class="weeks">${cells}</div>
     </article>`;
   }).join("") || `<p class="muted">${empty}</p>`;
@@ -183,7 +196,10 @@ const onCell = (e) => {
   const b = e.target.closest(".wk"); if (!b) return;
   unitSel = { k: b.dataset.k, u: +b.dataset.u };
   roundTmp = roundsOf(unitSel.k, unitSel.u);
-  $("unitTitle").textContent = `${b.dataset.name} · ${unitSel.u}${b.dataset.unit}`;
+  const weekly = !!b.dataset.weekly;
+  $("unitForm").classList.toggle("weekly", weekly);
+  $("pctLabel").textContent = weekly ? "이번 주 준비 진도" : "이번 회독 진도";
+  $("unitTitle").textContent = `${b.dataset.name} · ${unitSel.u}${weekly ? "주차" : b.dataset.unit}`;
   $("unitForm").pct.innerHTML = PCTS.map((v) => `<option value="${v}">${v}%</option>`).join("");
   $("unitForm").pct.value = curPct(unitSel.k, unitSel.u);
   $("unitForm").note.value = (notes[unitSel.k] || {})[unitSel.u] || "";
@@ -217,9 +233,9 @@ $("acts").addEventListener("click", (e) => {
 });
 $("trackForm").onsubmit = (e) => {
   e.preventDefault();
-  const f = e.target.elements, count = Math.round(+f.count.value);
-  if (!(count >= 1 && count <= 60)) return alert("개수는 1~60 사이로 적어 주세요.");
-  trackers.push({ id: String(Date.now()), name: f.name.value.trim(), emoji: f.emoji.value, unit: f.unit.value.trim() || "단원", count });
+  const f = e.target.elements, weekly = f.weekly.checked, count = Math.round(+f.count.value);
+  if (!weekly && !(count >= 1 && count <= 60)) return alert("개수는 1~60 사이로 적어 주세요.");
+  trackers.push({ id: String(Date.now()), name: f.name.value.trim(), emoji: f.emoji.value, unit: weekly ? "주" : f.unit.value.trim() || "단원", count: weekly ? 0 : count, weekly });
   save("wp.trackers", trackers);
   e.target.reset();
   render();
@@ -470,7 +486,7 @@ if (TODAY >= START) {
   if (!load("wp.practiceDone", false)) {
     const sched = load("wp.schedule", {});
     save("wp.practice", { events: myEvents.filter((e) => e.date < START), weeks: done, wprog: prog, logs: before(logs), todos: before(todos), schedule: sched });
-    myEvents = myEvents.filter((e) => e.date >= START); const keepT = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => k.startsWith("t:")));
+    myEvents = myEvents.filter((e) => e.date >= START); const weeklyKeys = trackers.filter((t) => t.weekly).map((t) => `t:${t.id}`); const keepT = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => k.startsWith("t:") && !weeklyKeys.includes(k)));
     done = keepT(done); prog = keepT(prog); rounds = keepT(rounds); notes = keepT(notes); save("wp.wprog", prog); save("wp.rounds", rounds); save("wp.notes", notes); logs = after(logs); todos = after(todos);
     save("wp.events", myEvents); save("wp.weeks", done); save("wp.logs", logs); save("wp.todos", todos); save("wp.schedule", {});
     D = { ...window.SCHEDULE };
