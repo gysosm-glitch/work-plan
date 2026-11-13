@@ -307,3 +307,16 @@ table.edit .x { border: none; background: none; color: var(--sub); box-shadow: n
 /* 주간 계획과 연결된 활동 */
 .blk .pbadge { position: absolute; top: 3px; right: 3px; display: inline-block; margin: 0; z-index: 1; background: rgba(255, 255, 255, .9); color: #0b7a57; border-radius: 8px; padding: 0 6px; font-size: 11px; font-weight: 600; }
 .wk.auto { border-style: dashed; border-color: #a78bfa; }
+
+/* 상단 메뉴(웹사이트 내비게이션처럼 헤더 안) */
+.brief .top { flex-wrap: wrap; gap: 10px 14px; }
+.brief .tabs { margin-left: auto; gap: 6px; }
+.brief .tabw { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .22); }
+.brief .tabs [role=tab] { color: #ece9ff; padding: 7px 15px; }
+.brief .tabs [role=tab]:hover { color: #fff; }
+.brief .tabw [role=tab][aria-selected=true] { background: #fff; color: var(--indigo); box-shadow: 0 4px 14px rgba(0, 0, 0, .18); }
+.brief .tabx { color: rgba(255, 255, 255, .6); }
+.brief .tabx:hover { color: #fff; }
+.brief .addtab { border-color: rgba(255, 255, 255, .5); color: #fff; }
+@media (max-width: 700px) { .brief .tabs { margin-left: 0; width: 100%; } }
+.count .cd { white-space: nowrap; }

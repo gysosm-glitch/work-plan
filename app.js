@@ -33,10 +33,9 @@ for (const t of trackers.filter((x) => x.weekly)) {
   save("wp.trackers", trackers);
 }
 let logs = load("wp.logs", {});   // 예전 자동 배분 기록(지금은 백업·초기화용으로만 보관)
-let todos = load("wp.todos", {}); // { 주 월요일: [{ text, done }] }
+let todos = load("wp.todos", {}); // 예전 "준비할 것" 기록(지금은 백업·초기화용으로만 보관)
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
 let tab = load("wp.tab", "week");
-const DEFAULT_TODOS = ["동아리 활동 준비", "AX 프로젝트 및 스터디 준비", "교과목 복습"];
 let sel = TODAY;
 let view = TODAY.slice(0, 7);
 
@@ -48,7 +47,6 @@ const label = (d) => { const x = WP.parse(d); return `${x.getMonth() + 1}/${x.ge
 const ddayTxt = (n) => (n === 0 ? "D-DAY" : n > 0 ? `D-${n}` : `D+${-n}`);
 const isDone = (c, w) => (done[c] || []).includes(w);
 const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
-const hours = (date) => WP.busyHours(items(date));
 
 const roundsOf = (k, u) => (rounds[k] || {})[u] || 0;
 const occPassed = (u) => { const [, d, h, m] = String(u).split(":"); return d < TODAY || (d === TODAY && WP.toMin(`${h}:${m}`) <= nowMin()); };
@@ -96,16 +94,6 @@ function renderBriefing() {
     ? `<div class="cd">${ddayTxt(WP.dday(TODAY, ex[0].date))}</div><div>🎯 ${esc(ex[0].course)}<br><span>${esc(ex[0].kind)} ${label(ex[0].date)}</span></div>`
     : `<div class="cd">—</div><div>🎉 남은 시험 없음</div>`;
 
-  const mon0 = WP.mondayOf(TODAY);
-  const wkH = Array.from({ length: 7 }, (_, i) => hours(WP.addDays(mon0, i))).reduce((a, b) => a + b, 0);
-  const td = todosFor(mon0), tracks = trackList();
-  const avg = tracks.length ? Math.round(tracks.reduce((a, x) => a + x.pct, 0) / tracks.length) : 0;
-  $("stats").innerHTML = [
-    ["📌 오늘 일정", `${list.length}건`, `${WP.busyHours(list)}시간`],
-    ["🗓️ 이번 주 일정", `${wkH}시간`, `${label(mon0)}부터`],
-    ["✅ 준비할 것", `${td.filter((t) => t.done).length} / ${td.length}`, "이번 주 완료"],
-    ["📊 진도", `${avg}%`, `교과·활동 ${tracks.length}개 평균`],
-  ].map(([l, v, n]) => `<div class="stat"><span class="l">${l}</span><b>${v}</b><span class="n">${n}</span></div>`).join("");
 }
 
 /* ---------- 일간 ---------- */
@@ -279,53 +267,7 @@ $("trackForm").onsubmit = (e) => {
   render();
 };
 
-/* ---------- 이번 주 준비할 것 ---------- */
-// 이번 주 할 일 자동 항목: 2주 안의 시험, 이번 주에 직접 넣은 일정(공부·준비·약속 등)
-function autoTodos(mon) {
-  const end = WP.addDays(mon, 6);
-  const exams = D.exams.filter((e) => e.date >= mon && e.date <= WP.addDays(mon, 13)).sort((a, b) => a.date.localeCompare(b.date))
-    .map((e) => `🎯 ${e.course} ${e.kind} ${label(e.date)} 대비`);
-  const events = myEvents.filter((e) => e.date >= mon && e.date <= end).sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start))
-    .map((e) => `${TYPE[e.type]?.[0] || "📌"} ${label(e.date)} ${e.start} ${e.title}`);
-  return [...exams, ...events].map((text) => ({ text, done: false, auto: true }));
-}
-
-// 저장된 목록이 없는 주: 시험·일정에서 자동으로 뽑은 할 일 + 지난주에 직접 적은 항목(못 한 것은 ⏩ 이월)
-// 이번 주(오늘이 속한 주) 목록은 처음 만들 때 저장해서 고정한다. 필요 없는 건 지우면 된다.
-function todosFor(mon) {
-  if (todos[mon]) return todos[mon].map((t) => ({ ...t }));
-  const prev = Object.keys(todos).filter((k) => k < mon).sort().pop();
-  const mine = prev ? todos[prev].filter((t) => !t.auto).map((t) => ({ text: t.text, done: false, carry: !t.done })) : DEFAULT_TODOS.map((text) => ({ text, done: false }));
-  const list = [...autoTodos(mon), ...mine];
-  if (mon === WP.mondayOf(TODAY)) { todos[mon] = list; save("wp.todos", todos); }
-  return list.map((t) => ({ ...t }));
-}
-function renderTodos() {
-  const mon = WP.mondayOf(sel), list = todosFor(mon);
-  $("todoTitle").textContent = `✅ ${WP.weekOf(D, mon)}주차 준비할 것 (${label(mon)} ~ ${label(WP.addDays(mon, 6))})`;
-  const n = list.filter((t) => t.done).length;
-  $("todoCount").textContent = list.length ? `${n} / ${list.length} 완료${n === list.length ? " 🎉" : ""}` : "";
-  $("todos").innerHTML = checkItems(list, "이번 주 준비할 것이 없어요.");
-}
-const saveTodos = (list) => { todos[WP.mondayOf(sel)] = list; save("wp.todos", todos); renderTodos(); };
-$("todos").onchange = (e) => {
-  const i = +e.target.dataset.i, list = todosFor(WP.mondayOf(sel));
-  if (e.target.type === "checkbox") list[i].done = e.target.checked;
-  else { const v = e.target.value.trim(); v ? (list[i].text = v) : list.splice(i, 1); }
-  saveTodos(list);
-};
-$("todos").onclick = (e) => {
-  const b = e.target.closest(".x"); if (!b) return;
-  const list = todosFor(WP.mondayOf(sel)); list.splice(+b.dataset.i, 1); saveTodos(list);
-};
-$("todoForm").onsubmit = (e) => {
-  e.preventDefault();
-  const v = e.target.t.value.trim(); if (!v) return;
-  const list = todosFor(WP.mondayOf(sel)); list.push({ text: v, done: false }); saveTodos(list);
-  e.target.reset();
-};
-
-/* ---------- 탭: 일간·주간·월간은 고정, 과목 진도와 내가 만든 탭은 추가·삭제 ---------- */
+/* ---------- 상단 메뉴: 주간·월간·활동은 고정, 교과와 내가 만든 탭은 추가·삭제. 주소(#week 등)와 함께 바뀌어 뒤로 가기가 된다 ---------- */
 const customTab = (id) => tabsCfg.custom.find((c) => c.id === id);
 const validTab = (t) => ["day", "week", "month"].includes(t) || (t === "course" && tabsCfg.course) || !!customTab(t);
 const saveTabs = () => save("wp.tabs", tabsCfg);
@@ -336,15 +278,15 @@ function renderTabs() {
     tabsCfg.custom.map((c) => btn(c.id, `${c.emoji} ${c.name}`, true)).join("") +
     `<button class="addtab" id="addTab">＋ 탭 추가</button>`;
 }
-function setTab(t) {
+function setTab(t, push = true) {
   tab = validTab(t) ? t : "week"; save("wp.tab", tab);
+  if (location.hash !== `#${tab}`) push ? (location.hash = tab) : history.replaceState(null, "", `#${tab}`);
   renderTabs();
   ["day", "week", "month", "course"].forEach((k) => ($(`p-${k}`).hidden = k !== tab));
   $("p-custom").hidden = !customTab(tab);
   renderPanel();
 }
 function renderPanel() {
-  renderTodos();
   if (tab === "day") { renderDay(); renderActs(); }
   else if (tab === "week") renderWeek();
   else if (tab === "month") renderCal();
@@ -428,8 +370,8 @@ $("cal").onclick = (e) => { const c = e.target.closest(".day"); if (c) goDay(c.d
 $("tt").onclick = (e) => { const c = e.target.closest(".hd"); if (c) goDay(c.dataset.d); };
 $("prev").onclick = () => { view = WP.addDays(`${view}-01`, -1).slice(0, 7); renderCal(); };
 $("next").onclick = () => { view = WP.addDays(`${view}-28`, 7).slice(0, 7); renderCal(); };
-document.querySelectorAll("[data-day]").forEach((b) => (b.onclick = () => { sel = +b.dataset.day ? WP.addDays(sel, +b.dataset.day) : TODAY; renderDay(); renderTodos(); }));
-document.querySelectorAll("[data-week]").forEach((b) => (b.onclick = () => { sel = WP.addDays(sel, +b.dataset.week); renderWeek(); renderTodos(); }));
+document.querySelectorAll("[data-day]").forEach((b) => (b.onclick = () => { sel = +b.dataset.day ? WP.addDays(sel, +b.dataset.day) : TODAY; renderDay(); }));
+document.querySelectorAll("[data-week]").forEach((b) => (b.onclick = () => { sel = WP.addDays(sel, +b.dataset.week); renderWeek(); }));
 
 // 넣어 둔 일정 지우기
 $("dayList").addEventListener("click", (e) => {
@@ -539,8 +481,9 @@ if (TODAY >= START) {
   $("trial").hidden = false;
 }
 
-const hasData = myEvents.length > 0 || Object.keys(logs).length > 0 || Object.keys(done).length > 0 || Object.keys(todos).length > 0 || tabsCfg.custom.length > 0 || trackers.length > 0 || Object.keys(load("wp.schedule", {})).length > 0;
+const hasData = myEvents.length > 0 || Object.keys(logs).length > 0 || Object.keys(done).length > 0 || Object.keys(todos).length > 0 || tabsCfg.custom.length > 0 || trackers.some((t) => !t.flex || t.entries.length) || Object.keys(prog).length > 0 || Object.keys(load("wp.schedule", {})).length > 0;
 
-setTab(tab);
+addEventListener("hashchange", () => { const t = location.hash.slice(1); if (t && t !== tab) setTab(t, false); });
+setTab(location.hash.slice(1) || tab, false);
 renderBriefing();
 backupReminder("work-plan", hasData, exportAll);

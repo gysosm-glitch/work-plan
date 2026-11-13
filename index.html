@@ -21,6 +21,7 @@
     <div class="top">
       <h1>💼 Work Plan</h1>
       <span class="sem" id="semWeek"></span>
+      <nav class="tabs" id="tabs" role="tablist" aria-label="화면 선택"></nav>
     </div>
     <div class="band">
       <div class="date" id="bDate"></div>
@@ -41,20 +42,6 @@
     <button id="practiceDl">📥 연습 기록 파일로 받기</button><button id="newYearClose">닫기</button></div>
 
   <main>
-    <section class="stats" id="stats"></section>
-
-    <section class="card todo">
-      <h2><span id="todoTitle"></span><span class="right muted small" id="todoCount"></span></h2>
-      <ul class="todos" id="todos"></ul>
-      <form class="todo-add" id="todoForm">
-        <input name="t" placeholder="준비할 것 추가 (예: 동아리 발표 자료 만들기)" required maxlength="60" aria-label="준비할 것 추가">
-        <button class="primary">추가</button>
-      </form>
-      <p class="muted small hint">🗓️ 매주 월요일, 2주 안의 시험과 지난주에 직접 적은 항목(못 한 것은 ⏩ 이월)으로 자동으로 채워져요. 필요 없는 건 ✕로 지우고, 글자를 눌러 바로 고칠 수 있어요.</p>
-    </section>
-
-    <nav class="tabs" id="tabs" role="tablist" aria-label="보기 선택"></nav>
-
     <!-- 주간 -->
     <section class="panel card" id="p-week" role="tabpanel">
       <h2 class="navh"><button class="nav" data-week="-7" aria-label="지난주">‹</button><span id="weekTitle"></span><button class="nav" data-week="7" aria-label="다음주">›</button>
