@@ -21,9 +21,8 @@ let trackers = load("wp.trackers", []); // 자격증·책 등 직접 만든 진�
 let logs = load("wp.logs", {});   // 예전 자동 배분 기록(지금은 백업·초기화용으로만 보관)
 let todos = load("wp.todos", {}); // { 주 월요일: [{ text, done }] }
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
-let tab = load("wp.tab", "day");
+let tab = load("wp.tab", "week");
 const DEFAULT_TODOS = ["동아리 활동 준비", "AX 프로젝트 및 스터디 준비", "교과목 복습"];
-let editing = null;               // 수정 중인 내 일정의 myEvents 인덱스
 let sel = TODAY;
 let view = TODAY.slice(0, 7);
 
@@ -83,7 +82,7 @@ function renderBriefing() {
     ["📌 오늘 일정", `${list.length}건`, `${WP.busyHours(list)}시간`],
     ["🗓️ 이번 주 일정", `${wkH}시간`, `${label(mon0)}부터`],
     ["✅ 준비할 것", `${td.filter((t) => t.done).length} / ${td.length}`, "이번 주 완료"],
-    ["📊 복습 진도", `${avg}%`, `과목·자격증 ${tracks.length}개 평균`],
+    ["📊 진도", `${avg}%`, `교과·활동 ${tracks.length}개 평균`],
   ].map(([l, v, n]) => `<div class="stat"><span class="l">${l}</span><b>${v}</b><span class="n">${n}</span></div>`).join("");
 }
 
@@ -98,11 +97,10 @@ function renderDay() {
   for (const it of list) {
     {
       const i = myEvents.indexOf(it);
-      rows.push(`<li style="--c:${TYPE_COLOR[it.type] || "#94a3b8"}"><span class="t">${it.start}–${it.end}</span><div class="body">${TYPE[it.type]?.[0] || "📌"} ${esc(it.title)} <span class="muted small">${TYPE_NAME[it.type] || ""}</span></div>${i >= 0 ? `<span class="acts"><button class="x ed" data-i="${i}" aria-label="수정">✎</button><button class="x del" data-i="${i}" aria-label="삭제">✕</button></span>` : ""}</li>`);
+      rows.push(`<li style="--c:${TYPE_COLOR[it.type] || "#94a3b8"}"><span class="t">${it.start}–${it.end}</span><div class="body">${TYPE[it.type]?.[0] || "📌"} ${esc(it.title)} <span class="muted small">${TYPE_NAME[it.type] || ""}</span></div>${i >= 0 ? `<span class="acts"><button class="x del" data-i="${i}" aria-label="삭제">✕</button></span>` : ""}</li>`);
     }
   }
-  $("dayList").innerHTML = rows.join("") || `<li class="empty">🌿 비어 있는 날이에요. 쉬거나 밀린 공부를 해 보세요.</li>`;
-  if (editing === null) $("addForm").date.value = sel;
+  $("dayList").innerHTML = rows.join("") || `<li class="empty">🌿 비어 있는 날이에요.</li>`;
 }
 
 /* ---------- 주간 ---------- */
@@ -151,9 +149,10 @@ function trackList() {
   const ts = trackers.map((t) => ({ key: `t:${t.id}`, name: t.name, emoji: t.emoji, unit: t.unit, units: Array.from({ length: t.count }, (_, i) => i + 1), id: t.id }));
   return [...cs, ...ts].map((x) => ({ ...x, pct: x.units.length ? Math.round(x.units.reduce((a, u) => a + pctOf(x.key, u), 0) / x.units.length) : 0 }));
 }
-function renderCourses() {
+// list: 그릴 항목들, el: 넣을 곳
+function renderTracks(list, el, empty) {
   const cw = WP.weekOf(D, TODAY);
-  $("courses").innerHTML = trackList().map((x) => {
+  el.innerHTML = list.map((x) => {
     const c = x.course;
     const fin = x.units.filter((u) => pctOf(x.key, u) === 100).length;
     const exams = c ? D.exams.filter((e) => e.course === x.name).sort((a, b) => a.date.localeCompare(b.date)) : [];
@@ -173,12 +172,14 @@ function renderCourses() {
       <p class="small muted">진도 <b>${x.pct}%</b> · ${fin} / ${x.units.length}${esc(x.unit)} 끝냄 · 평균 <b>${avgR}회독</b></p>
       <div class="weeks">${cells}</div>
     </article>`;
-  }).join("") || `<p class="muted">아직 진도 항목이 없어요. 위에서 추가하거나 ⚙️ 시간표·시험 편집에서 시험을 넣어 주세요.</p>`;
+  }).join("") || `<p class="muted">${empty}</p>`;
 }
+const renderCourses = () => renderTracks(trackList().filter((x) => x.course), $("courses"), "시험이 등록된 과목이 없어요. ⚙️ 시간표·시험 편집에서 추가해 주세요.");
+const renderActs = () => renderTracks(trackList().filter((x) => !x.course), $("acts"), "아직 활동 항목이 없어요. 위에서 자격증·동아리 등을 추가해 보세요.");
 // 칸을 누르면 편집 창: 이번 회독 진도 %, 회독 수, 어디까지 했는지
 let unitSel = null, roundTmp = 0;
 const showRound = () => ($("roundV").textContent = roundTmp);
-$("courses").addEventListener("click", (e) => {
+const onCell = (e) => {
   const b = e.target.closest(".wk"); if (!b) return;
   unitSel = { k: b.dataset.k, u: +b.dataset.u };
   roundTmp = roundsOf(unitSel.k, unitSel.u);
@@ -188,7 +189,9 @@ $("courses").addEventListener("click", (e) => {
   $("unitForm").note.value = (notes[unitSel.k] || {})[unitSel.u] || "";
   showRound();
   $("unitDlg").showModal();
-});
+};
+$("courses").addEventListener("click", onCell);
+$("acts").addEventListener("click", onCell);
 $("unitForm").addEventListener("click", (e) => {
   const r = e.target.closest("[data-r]"); if (r) { roundTmp = Math.max(0, roundTmp + +r.dataset.r); showRound(); }
 });
@@ -203,7 +206,7 @@ $("unitForm").onsubmit = (e) => { e.preventDefault(); saveUnit(+e.target.pct.val
 // 한 바퀴 끝: 회독 +1, 진도는 0%로 돌려 다음 회독 시작
 $("roundDone").onclick = () => { roundTmp += 1; saveUnit(0); };
 $("unitCancel").onclick = () => $("unitDlg").close();
-$("courses").onclick = (e) => {
+$("acts").addEventListener("click", (e) => {
   const b = e.target.closest(".tdel"); if (!b) return;
   const t = trackers.find((x) => x.id === b.dataset.id);
   if (!confirm(`"${t.name}" 진도 항목을 삭제할까요? 기록한 %도 함께 지워져요.`)) return;
@@ -211,7 +214,7 @@ $("courses").onclick = (e) => {
   for (const m of [prog, done, rounds, notes]) delete m[`t:${t.id}`];
   save("wp.trackers", trackers); save("wp.wprog", prog); save("wp.weeks", done); save("wp.rounds", rounds); save("wp.notes", notes);
   render();
-};
+});
 $("trackForm").onsubmit = (e) => {
   e.preventDefault();
   const f = e.target.elements, count = Math.round(+f.count.value);
@@ -274,13 +277,13 @@ const validTab = (t) => ["day", "week", "month"].includes(t) || (t === "course" 
 const saveTabs = () => save("wp.tabs", tabsCfg);
 function renderTabs() {
   const btn = (k, n, rm) => `<span class="tabw"><button role="tab" data-tab="${k}" aria-selected="${tab === k}">${esc(n)}</button>${rm ? `<button class="tabx" data-rm="${k}" aria-label="${esc(n)} 탭 삭제" title="탭 삭제">✕</button>` : ""}</span>`;
-  $("tabs").innerHTML = btn("day", "📋 일간 계획") + btn("week", "🗓️ 주간 계획") + btn("month", "📆 월간") +
-    (tabsCfg.course ? btn("course", "📊 진도·복습", true) : "") +
+  $("tabs").innerHTML = btn("week", "🗓️ 주간 계획") + btn("month", "📆 월간") +
+    (tabsCfg.course ? btn("course", "📚 교과", true) : "") + btn("day", "🎯 활동") +
     tabsCfg.custom.map((c) => btn(c.id, `${c.emoji} ${c.name}`, true)).join("") +
     `<button class="addtab" id="addTab">＋ 탭 추가</button>`;
 }
 function setTab(t) {
-  tab = validTab(t) ? t : "day"; save("wp.tab", tab);
+  tab = validTab(t) ? t : "week"; save("wp.tab", tab);
   renderTabs();
   ["day", "week", "month", "course"].forEach((k) => ($(`p-${k}`).hidden = k !== tab));
   $("p-custom").hidden = !customTab(tab);
@@ -288,7 +291,7 @@ function setTab(t) {
 }
 function renderPanel() {
   renderTodos();
-  if (tab === "day") renderDay();
+  if (tab === "day") { renderDay(); renderActs(); }
   else if (tab === "week") renderWeek();
   else if (tab === "month") renderCal();
   else if (tab === "course") renderCourses();
@@ -336,14 +339,14 @@ $("tabs").onclick = (e) => {
   if (rm) {
     const k = rm.dataset.rm;
     if (k === "course") {
-      if (!confirm("📊 진도·복습 탭을 숨길까요? 기록은 그대로 남고, ＋ 탭 추가에서 다시 켤 수 있어요.")) return;
+      if (!confirm("📚 교과 탭을 숨길까요? 기록은 그대로 남고, ＋ 탭 추가에서 다시 켤 수 있어요.")) return;
       tabsCfg.course = false;
     } else {
       const c = customTab(k);
       if (!confirm(`"${c.name}" 탭을 삭제할까요? 안에 있는 항목 ${c.items.length}개와 메모도 함께 지워져요.`)) return;
       tabsCfg.custom = tabsCfg.custom.filter((x) => x.id !== k);
     }
-    saveTabs(); return setTab(tab === k ? "day" : tab);
+    saveTabs(); return setTab(tab === k ? "week" : tab);
   }
   if (e.target.closest("#addTab")) {
     $("tabForm").reset();
@@ -371,41 +374,16 @@ $("cal").onclick = (e) => { const c = e.target.closest(".day"); if (c) goDay(c.d
 $("tt").onclick = (e) => { const c = e.target.closest(".hd"); if (c) goDay(c.dataset.d); };
 $("prev").onclick = () => { view = WP.addDays(`${view}-01`, -1).slice(0, 7); renderCal(); };
 $("next").onclick = () => { view = WP.addDays(`${view}-28`, 7).slice(0, 7); renderCal(); };
-document.querySelectorAll("[data-day]").forEach((b) => (b.onclick = () => { sel = +b.dataset.day ? WP.addDays(sel, +b.dataset.day) : TODAY; if (editing !== null) setEditing(null); renderDay(); renderTodos(); }));
+document.querySelectorAll("[data-day]").forEach((b) => (b.onclick = () => { sel = +b.dataset.day ? WP.addDays(sel, +b.dataset.day) : TODAY; renderDay(); renderTodos(); }));
 document.querySelectorAll("[data-week]").forEach((b) => (b.onclick = () => { sel = WP.addDays(sel, +b.dataset.week); renderWeek(); renderTodos(); }));
 
-// 내 일정 추가·수정·삭제
-function setEditing(i) {
-  editing = i;
-  const f = $("addForm");
-  $("addBtn").textContent = i === null ? "일정 추가" : "수정 저장";
-  $("cancelEdit").hidden = i === null;
-  f.classList.toggle("editing", i !== null);
-  if (i === null) { f.title.value = ""; f.date.value = sel; return; }
-  const ev = myEvents[i];
-  for (const k of ["title", "date", "type", "start", "end"]) f[k].value = ev[k];
-  f.title.focus();
-}
+// 넣어 둔 일정 지우기
 $("dayList").addEventListener("click", (e) => {
   const b = e.target.closest(".x"); if (!b) return;
-  const i = +b.dataset.i;
-  if (b.classList.contains("ed")) return setEditing(i);
   if (!confirm("이 일정을 삭제할까요?")) return;
-  myEvents.splice(i, 1); save("wp.events", myEvents);
-  if (editing !== null) setEditing(null);
+  myEvents.splice(+b.dataset.i, 1); save("wp.events", myEvents);
   refresh();
 });
-$("cancelEdit").onclick = () => setEditing(null);
-$("addForm").onsubmit = (e) => {
-  e.preventDefault();
-  const f = Object.fromEntries(new FormData(e.target));
-  if (f.end <= f.start) return alert("종료 시간이 시작 시간보다 늦어야 해요.");
-  const ev = { date: f.date, start: f.start, end: f.end, title: f.title.trim(), type: f.type };
-  if (editing === null) myEvents.push(ev); else myEvents[editing] = ev;
-  save("wp.events", myEvents);
-  sel = f.date; view = sel.slice(0, 7);
-  setEditing(null); refresh();
-};
 
 /* ---------- 시간표·시험·학기 편집 창 ---------- */
 const opts = (pairs, v) => pairs.map(([k, n]) => `<option value="${k}"${String(k) === String(v) ? " selected" : ""}>${n}</option>`).join("");
