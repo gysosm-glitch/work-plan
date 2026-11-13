@@ -193,7 +193,7 @@ function renderTracks(list, el, empty) {
     </article>`;
   }).join("") || `<p class="muted">${empty}</p>`;
 }
-const renderCourses = () => renderTracks(trackList().filter((x) => x.course), $("courses"), "시험이 등록된 과목이 없어요. ⚙️ 시간표·시험 편집에서 추가해 주세요.");
+const renderCourses = () => renderTracks(trackList().filter((x) => x.course), $("courses"), "시험이 등록된 과목이 없어요. ⚙️ 일정 편집에서 추가해 주세요.");
 const renderActs = () => renderTracks(trackList().filter((x) => !x.course), $("acts"), "아직 활동 항목이 없어요. 위에서 자격증·동아리 등을 추가해 보세요.");
 // 칸을 누르면 편집 창: 이번 회독 진도 %, 회독 수, 어디까지 했는지
 let unitSel = null, roundTmp = 0;
