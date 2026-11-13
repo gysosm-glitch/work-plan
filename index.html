@@ -61,22 +61,21 @@
         <h2 class="navh"><button class="nav" data-day="-1" aria-label="전날">‹</button><span id="dayTitle"></span><button class="nav" data-day="1" aria-label="다음날">›</button>
           <button class="small-btn" data-day="0">오늘</button><span class="right muted small" id="dayLoad"></span></h2>
         <ul class="plan" id="dayList"></ul>
-        <p class="muted small hint">✏️ 공부 블록은 주간 계획에서 자동으로 배분돼요. 다 끝낸 주차는 <b>주차 완료</b>를 체크하고, 어디까지 했는지 적어 두세요.</p>
       </section>
       <section class="card side">
-        <h2>📍 특이사항</h2>
+        <h2>📍 특이사항 · 공부 계획</h2>
         <form class="form" id="addForm">
-          <input class="full" name="title" placeholder="예: 친구 약속, 병원 예약, 가족 행사" required aria-label="특이사항">
+          <input class="full" name="title" placeholder="예: 데이터분석 7주차 복습, AX 스터디 자료, 친구 약속" required aria-label="특이사항">
           <input name="date" type="date" required aria-label="날짜">
           <select name="type" aria-label="종류">
-            <option value="appt">📍 약속</option><option value="cert">📝 자격증</option><option value="etc">📌 기타</option><option value="meeting">🤝 회의</option><option value="work">💼 아르바이트</option><option value="club">🎸 동아리</option><option value="field">🚗 현장</option><option value="class">📚 수업</option>
+            <option value="appt">📍 약속</option><option value="study">✏️ 공부</option><option value="prep">🗂️ 스터디 준비</option><option value="cert">📝 자격증</option><option value="etc">📌 기타</option><option value="meeting">🤝 회의</option><option value="work">💼 아르바이트</option><option value="club">🎸 동아리</option><option value="field">🚗 현장</option><option value="class">📚 수업</option>
           </select>
           <input name="start" type="time" value="18:00" required aria-label="시작 시간">
           <input name="end" type="time" value="20:00" required aria-label="종료 시간">
-          <button class="primary" id="addBtn">특이사항 추가</button>
+          <button class="primary" id="addBtn">일정 추가</button>
           <button type="button" id="cancelEdit" hidden>수정 취소</button>
         </form>
-        <p class="muted small hint">넣은 시간에는 공부 블록이 배분되지 않아요.</p>
+        <p class="muted small hint">공부·스터디 준비도 여기서 날짜와 시간을 정해 직접 넣어요. 주간 계획에 바로 보여요.</p>
 
       </section>
     </div>
@@ -84,20 +83,7 @@
     <!-- 주간 -->
     <section class="panel card" id="p-week" role="tabpanel">
       <h2 class="navh"><button class="nav" data-week="-7" aria-label="지난주">‹</button><span id="weekTitle"></span><button class="nav" data-week="7" aria-label="다음주">›</button>
-        <span class="right legend"><span><i class="sw study"></i>✏️ 자동 배분된 공부</span><span><i class="sw fixed"></i>고정·내 일정</span></span></h2>
-      <div class="weeksum" id="weekSum"></div>
-      <div class="review" id="review"></div>
-      <div class="over">
-        <h3>📈 계획초과 기록 <span class="muted small">계획보다 더 한 공부</span></h3>
-        <form class="form" id="extraForm">
-          <select name="course" id="extraCourse" aria-label="과목"></select>
-          <select name="week" id="extraWeek" aria-label="주차"></select>
-          <input name="note" placeholder="예: 6주차 실습까지 미리 끝냄" maxlength="60" aria-label="계획초과 내용">
-          <button class="primary">계획초과 기록</button>
-        </form>
-        <ul class="extras" id="extraList"></ul>
-        <p class="muted small hint">이번 주 계획은 그대로 두고, 주가 끝나면(다음 월요일) 고른 주차를 완료로 집계해서 다음 주 계획에 반영해요.</p>
-      </div>
+        <span class="right muted small">날짜를 누르면 그날 일간 계획으로 가서 일정을 넣을 수 있어요</span></h2>
       <div class="scroll"><div class="tt" id="tt"></div></div>
     </section>
 
@@ -114,7 +100,15 @@
 
     <!-- 과목 진도 -->
     <section class="panel" id="p-course" role="tabpanel">
-      <p class="muted small hint">🟦 중간고사 없는 과목은 <b>1주차부터</b>, 중간고사를 본 과목은 <b>9주차부터</b> 다가오는 시험 전 주까지 체크해요. 주차 칸을 눌러 완료/취소해요.</p>
+      <form class="card track-add" id="trackForm">
+        <h3>＋ 진도 항목 추가 <span class="muted small">자격증·책·인강 등 — 단위마다 복습 %를 기록해요</span></h3>
+        <input name="name" required maxlength="30" placeholder="예: 정보처리기사 필기" aria-label="항목 이름">
+        <select name="emoji" aria-label="아이콘"><option>📝</option><option>📖</option><option>💻</option><option>🎯</option><option>🧠</option><option>🗣️</option></select>
+        <input name="unit" value="단원" maxlength="6" aria-label="단위 (단원·챕터·회차 등)">
+        <input name="count" type="number" min="1" max="60" value="10" required aria-label="개수">
+        <button class="primary">추가</button>
+      </form>
+      <p class="muted small hint">📘 과목은 중간고사가 없으면 1주차부터, 봤으면 9주차부터 시험 전 주까지 나와요. 칸마다 복습한 만큼 %를 골라 주세요.</p>
       <div class="courses" id="courses"></div>
     </section>
 
@@ -144,8 +138,8 @@
       <div class="scroll"><table class="edit"><thead><tr><th>요일</th><th>시작</th><th>종료</th><th>이름</th><th>종류</th><th></th></tr></thead><tbody id="wRows"></tbody></table></div>
 
       <h3>시험·발표 <button type="button" id="addE">+ 시험 추가</button></h3>
-      <div class="scroll"><table class="edit"><thead><tr><th>과목</th><th>구분</th><th>날짜</th><th>후보 날짜</th><th>중간고사 없음</th><th>난이도</th><th></th></tr></thead><tbody id="eRows"></tbody></table></div>
-      <p class="muted small">날짜가 확정되면 후보 날짜를 비워 주세요. "중간고사 없음"을 체크한 과목은 1주차부터, 나머지는 9주차부터 진도를 체크해요. 난이도가 높을수록 한 주차 공부 시간이 길게 잡혀요(상 120분 · 중 90분 · 하 60분).</p>
+      <div class="scroll"><table class="edit"><thead><tr><th>과목</th><th>구분</th><th>날짜</th><th>후보 날짜</th><th>중간고사 없음</th><th></th></tr></thead><tbody id="eRows"></tbody></table></div>
+      <p class="muted small">날짜가 확정되면 후보 날짜를 비워 주세요. "중간고사 없음"을 체크한 과목은 1주차부터, 나머지는 9주차부터 진도를 체크해요.</p>
 
       <div class="actions">
         <button type="button" id="resetSetup">처음 상태로 되돌리기</button>
@@ -163,7 +157,7 @@
         <option>📌</option><option>🎯</option><option>📖</option><option>💡</option><option>🏃</option><option>💪</option><option>🧠</option><option>💻</option><option>🎨</option><option>✈️</option><option>📝</option><option>🌱</option>
       </select></label>
       <p class="muted small">새 탭에는 체크리스트와 메모가 들어가요. 필요 없어지면 탭의 ✕로 지울 수 있어요.</p>
-      <label class="restore" id="restoreRow"><input type="checkbox" name="course"> 📚 과목 진도 탭 다시 보이기</label>
+      <label class="restore" id="restoreRow"><input type="checkbox" name="course"> 📊 진도·복습 탭 다시 보이기</label>
       <div class="actions"><button type="button" id="tabCancel">취소</button><span class="grow"></span><button class="primary">추가</button></div>
     </form>
   </dialog>

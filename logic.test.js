@@ -25,35 +25,4 @@ assert.deepStrictEqual([pm.startWeek, pm.lastWeek], [9, 14]); // 중간 봄 → 
 // 11/30 기말이 지나면 다음 마감(12/14 발표) 기준으로 바뀜
 assert.strictEqual(W.courses(D, "2026-12-01").find((c) => c.course === "데이터분석프로그래밍").deadline, "2026-12-14");
 
-// 빈 시간: 화요일은 09~10, 13~14(수업 사이), 21~23
-assert.deepStrictEqual(W.freeSlots(W.itemsForDate(D, "2026-11-17")), [[540, 600], [780, 840], [1260, 1380]]);
-
-// 주간 자동 배분
-const week = W.mondayOf("2026-11-12");
-const { blocks } = W.planWeek(D, [], {}, {}, week, "2026-11-12");
-assert.ok(blocks.length > 0);
-for (const b of blocks) {
-  assert.ok(b.date >= "2026-11-12", "지난 날에는 배분하지 않음");
-  const busy = W.itemsForDate(D, b.date).map((i) => [W.toMin(i.start), W.toMin(i.end)]);
-  const s = W.toMin(b.start), e = W.toMin(b.end);
-  assert.ok(busy.every(([a, z]) => e <= a || s >= z), `고정 일정과 겹치지 않음: ${b.date} ${b.start}`);
-  assert.ok(s >= 540 && e <= 1380);
-}
-const minDay = {};
-blocks.forEach((b) => (minDay[b.date] = (minDay[b.date] || 0) + W.toMin(b.end) - W.toMin(b.start)));
-assert.ok(Object.values(minDay).every((m) => m <= W.CAP_MIN), "하루 공부 4.5시간 이하");
-// 난이도별 블록 길이: 데이터분석(상)=120분, 한국사(하)=60분
-for (const b of blocks) assert.strictEqual(W.toMin(b.end) - W.toMin(b.start), W.LEVEL_MIN[C.find((c) => c.course === b.course).level]);
-// 완료한 주차는 다시 배분하지 않음
-const done = { 데이터분석프로그래밍: Array.from({ length: 13 }, (_, i) => i + 1) };
-assert.ok(W.planWeek(D, [], done, {}, week, "2026-11-12").blocks.every((b) => b.course !== "데이터분석프로그래밍"));
-// 오늘은 지금 시각 이후에만 배분
-assert.ok(W.planWeek(D, [], {}, {}, week, "2026-11-12", 20 * 60).blocks.filter((b) => b.date === "2026-11-12").every((b) => b.start >= "20:00"));
-// 진행률: 데이터분석(상, 120분) 1주차 50% → 60분만 배분
-const half = W.planWeek(D, [], {}, {}, week, "2026-11-12", 0, { 데이터분석프로그래밍: { 1: 50 } }).blocks.find((b) => b.key === "데이터분석프로그래밍|1");
-assert.strictEqual(W.toMin(half.end) - W.toMin(half.start), 60);
-// 지난 날 못 한 블록은 같은 주 남은 날로 다시 배분
-const missLog = { "2026-11-13": { blocks: { "데이터분석프로그래밍|1": { key: "데이터분석프로그래밍|1", course: "데이터분석프로그래밍", week: 1, start: "09:00", end: "11:00", done: false } } } };
-const re = W.planWeek(D, [], {}, missLog, week, "2026-11-14").blocks.find((b) => b.course === "데이터분석프로그래밍" && b.week === 1);
-assert.ok(re && re.date >= "2026-11-14", "못 한 1주차가 11/14 이후로 다시 잡힘");
 console.log("ok");

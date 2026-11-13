@@ -266,3 +266,14 @@ table.edit .x { border: none; background: none; color: var(--sub); box-shadow: n
 .over .form { grid-template-columns: 1fr 1fr 2fr auto; }
 @media (max-width: 700px) { .over .form { grid-template-columns: 1fr 1fr; } }
 .extras li.none { background: none; border: none; padding: 0; }
+
+/* 진도·복습 칸: 단위마다 % 선택 */
+.wk { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 4px 2px; min-width: 60px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.wk span { font-size: 12px; }
+.wk select { border: none; background: transparent; padding: 0; font-size: 12px; text-align: center; cursor: pointer; }
+.course header .tdel { margin-left: auto; border: none; background: none; color: #b3aed0; box-shadow: none; }
+.track-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 4px; }
+.track-add h3 { flex-basis: 100%; margin: 0; font-size: 17px; }
+.track-add input[name=name] { flex: 1; min-width: 170px; }
+.track-add input[name=unit], .track-add input[name=count] { width: 76px; }
+.ty-prep { background: #14b8a6; }
