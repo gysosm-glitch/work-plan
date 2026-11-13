@@ -13,7 +13,7 @@
   function itemsForDate(data, date, extra = []) {
     const dow = parse(date).getDay();
     const inSem = date >= data.semester.start && date <= data.semester.end && !data.skip.includes(date);
-    const weekly = inSem ? data.weekly.filter((w) => w.day === dow) : [];
+    const weekly = inSem ? data.weekly.filter((w) => w.day === dow && (!w.until || date <= w.until)) : []; // until: 이 날까지만 반복
     const events = [...data.events, ...extra].filter((e) => e.date === date);
     return [...weekly, ...events].sort((a, b) => toMin(a.start) - toMin(b.start));
   }
@@ -31,13 +31,14 @@
     for (const e of data.exams) {
       const c = (map[e.course] ||= { course: e.course, noMidterm: false, dates: [] });
       if (e.noMidterm) c.noMidterm = true;
+      if (e.from) c.from = Math.min(c.from || 99, +e.from); // 같은 이름이 여러 개면 가장 이른 시작 주차
       c.dates.push(e.date);
     }
     return Object.values(map).map((c) => {
       const dates = c.dates.sort();
       const deadline = dates.find((d) => d >= today) || null;
       const lastWeek = weekOf(data, deadline || dates[dates.length - 1]) - 1;
-      return { course: c.course, noMidterm: c.noMidterm, startWeek: c.noMidterm ? 1 : 9, lastWeek, deadline };
+      return { course: c.course, noMidterm: c.noMidterm, startWeek: c.from || (c.noMidterm ? 1 : 9), lastWeek, deadline };
     }).sort((a, b) => (a.deadline || "9").localeCompare(b.deadline || "9"));
   }
 

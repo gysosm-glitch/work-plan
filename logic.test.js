@@ -25,4 +25,11 @@ assert.deepStrictEqual([pm.startWeek, pm.lastWeek], [9, 14]); // 중간 봄 → 
 // 11/30 기말이 지나면 다음 마감(12/14 발표) 기준으로 바뀜
 assert.strictEqual(W.courses(D, "2026-12-01").find((c) => c.course === "데이터분석프로그래밍").deadline, "2026-12-14");
 
+// until: 12/6까지만 반복 → 12/8(화)엔 동아리·AX 회의 없음, 12/1(화)엔 있음
+assert.ok(!W.itemsForDate(D, "2026-12-08").some((i) => /AX|동아리/.test(i.title)));
+assert.ok(W.itemsForDate(D, "2026-12-01").some((i) => i.title === "동아리 활동"));
+// 진도 시작 주차(from)가 있으면 그 주차부터
+assert.strictEqual(W.courses({ ...D, exams: [{ course: "X", kind: "마감", date: "2026-12-10", from: 5 }] }, "2026-11-12")[0].startWeek, 5);
+// 같은 이름 마감이 여러 개면 가장 이른 시작 주차
+assert.strictEqual(W.courses({ ...D, exams: [{ course: "Y", kind: "기말", date: "2026-11-30", from: 1 }, { course: "Y", kind: "발표", date: "2026-12-14", from: 9 }] }, "2026-11-12")[0].startWeek, 1);
 console.log("ok");

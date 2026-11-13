@@ -38,14 +38,15 @@
   </div>
 
   <div class="notice trial" id="trial" hidden role="status"><span>🧪 <b>연습 기간</b>이에요. 12월 31일까지의 기록은 2027년 1월 1일에 자동으로 정리되고, 그때부터 본격적으로 써요.</span></div>
-  <div class="notice newyear" id="newYear" hidden role="status"><span>🎉 <b>2027년 새 출발!</b> 2026년 연습 기록을 정리했어요. 새 학기 시간표는 ⚙️ 일정 편집에서 넣어 주세요.</span>
+  <div class="notice newyear" id="newYear" hidden role="status"><span>🎉 <b>2027년 새 출발!</b> 2026년 연습 기록을 정리했어요. 새 기간의 반복 일정은 ⚙️ 일정 편집에서 넣어 주세요.</span>
     <button id="practiceDl">📥 연습 기록 파일로 받기</button><button id="newYearClose">닫기</button></div>
 
   <main>
     <!-- 주간 -->
     <section class="panel card" id="p-week" role="tabpanel">
       <h2 class="navh"><button class="nav" data-week="-7" aria-label="지난주">‹</button><span id="weekTitle"></span><button class="nav" data-week="7" aria-label="다음주">›</button>
-        <span class="right muted small">AX·동아리 일정에는 이번 주 준비 상태가 표시돼요(일정이 끝나면 ✅) · 날짜를 누르면 활동 탭으로</span></h2>
+        <button class="small-btn primary" id="weekAdd">＋ 일정 추가</button>
+        <span class="right muted small">빈 시간을 누르면 그 시간에 추가, 넣은 일정을 누르면 수정 · 날짜를 누르면 활동 탭으로</span></h2>
       <div class="scroll"><div class="tt" id="tt"></div></div>
     </section>
 
@@ -57,12 +58,12 @@
         </span>
       </h2>
       <div class="cal" id="cal"></div>
-      <p class="muted small hint">날짜를 누르면 활동 탭에서 그날 일정을 볼 수 있어요.</p>
+      <p class="muted small hint">날짜를 누르면 그날 일정을 추가하고, 날짜 안의 일정을 누르면 고칠 수 있어요.</p>
     </section>
 
-    <!-- 교과 -->
+    <!-- 학습 -->
     <section class="panel" id="p-course" role="tabpanel">
-      <p class="muted small hint">📘 과목은 중간고사가 없으면 1주차부터, 봤으면 9주차부터 시험 전 주까지 나와요. 칸을 누르면 이번 회독 진도 %, 회독 수, 어디까지 했는지를 기록해요.</p>
+      <p class="muted small hint">📘 ⚙️ 일정 편집의 마감·시험마다 "진도 시작 주차"부터 마감 전 주까지 칸이 생겨요. 칸을 누르면 이번 회독 진도 %, 회독 수, 어디까지 했는지를 기록해요.</p>
       <div class="courses" id="courses"></div>
     </section>
 
@@ -76,7 +77,7 @@
       <form class="card track-add" id="trackForm">
         <h3>＋ 활동 항목 추가 <span class="muted small">"칸 직접 만들기"는 준비할 일을 칸으로 만들어 %·메모를 적고, 끄면 단원마다 회독·진도를 기록해요(자격증·책 등)</span></h3>
         <input name="name" required maxlength="30" placeholder="예: 정보처리기사 필기" aria-label="항목 이름">
-        <select name="emoji" aria-label="아이콘"><option>📝</option><option>📖</option><option>💻</option><option>🤖</option><option>🎸</option><option>🎯</option><option>🧠</option><option>🗣️</option></select>
+        <select name="emoji" class="icons" aria-label="아이콘"></select>
         <label class="wkchk"><input type="checkbox" name="flex" checked> 칸 직접 만들기 (활동 준비용)</label>
         <input name="unit" value="단원" maxlength="6" aria-label="단위 (단원·챕터·회차 등)">
         <input name="count" type="number" min="1" max="60" value="10" required aria-label="개수">
@@ -99,20 +100,21 @@
     <form id="setupForm">
       <h2 id="setupTitle">⚙️ 일정 편집</h2>
 
-      <h3>학기</h3>
+      <h3>📅 기간</h3>
       <div class="inline">
-        <label>개강 <input type="date" id="semStart" required></label>
-        <label>종강 <input type="date" id="semEnd" required></label>
-        <label class="grow">휴강일 <input id="skip" placeholder="2026-11-20, 2026-12-01"></label>
+        <label>시작일 <input type="date" id="semStart" required></label>
+        <label>종료일 <input type="date" id="semEnd" required></label>
+        <label class="grow">쉬는 날 <input id="skip" placeholder="2026-11-20, 2026-12-01"></label>
       </div>
-      <p class="muted small">개강일이 있는 주가 1주차예요. 개강~종강 사이에만 고정 시간표가 반복되고, 휴강일에는 빠져요.</p>
+      <p class="muted small">시작일이 있는 주가 1주차예요. 시작일~종료일 사이에만 매주 반복 일정이 나오고, 쉬는 날에는 빠져요. (학기·프로젝트·근무 기간 등)</p>
 
-      <h3>매주 고정 일정 <button type="button" id="addW">+ 일정 추가</button></h3>
-      <div class="scroll"><table class="edit"><thead><tr><th>요일</th><th>시작</th><th>종료</th><th>이름</th><th>종류</th><th></th></tr></thead><tbody id="wRows"></tbody></table></div>
+      <h3>🔁 매주 반복 일정 <button type="button" id="addW">+ 반복 일정 추가</button></h3>
+      <div class="scroll"><table class="edit"><thead><tr><th>요일</th><th>시작</th><th>종료</th><th>이름</th><th>종류</th><th>끝나는 날</th><th></th></tr></thead><tbody id="wRows"></tbody></table></div>
+      <p class="muted small">"끝나는 날"을 넣으면 그날까지만 반복돼요. 비우면 기간이 끝날 때까지 반복돼요.</p>
 
-      <h3>시험·발표 <button type="button" id="addE">+ 시험 추가</button></h3>
-      <div class="scroll"><table class="edit"><thead><tr><th>과목</th><th>구분</th><th>날짜</th><th>후보 날짜</th><th>중간고사 없음</th><th></th></tr></thead><tbody id="eRows"></tbody></table></div>
-      <p class="muted small">날짜가 확정되면 후보 날짜를 비워 주세요. "중간고사 없음"을 체크한 과목은 1주차부터, 나머지는 9주차부터 진도를 체크해요.</p>
+      <h3>🎯 마감·시험 (D-day) <button type="button" id="addE">+ 마감 추가</button></h3>
+      <div class="scroll"><table class="edit"><thead><tr><th>이름</th><th>종류</th><th>날짜</th><th>후보 날짜</th><th>진도 시작 주차</th><th></th></tr></thead><tbody id="eRows"></tbody></table></div>
+      <p class="muted small">날짜가 확정되면 후보 날짜를 비워 주세요. 📚 학습 탭에 "진도 시작 주차"부터 마감 전 주까지 진도 칸이 생겨요.</p>
 
       <div class="actions">
         <button type="button" id="resetSetup">처음 상태로 되돌리기</button>
@@ -122,6 +124,16 @@
       </div>
     </form>
   </dialog>
+  <dialog id="evDlg" aria-labelledby="evTitle">
+    <form id="evForm" class="tabform">
+      <h2 id="evTitle">＋ 일정 추가</h2>
+      <label>이름 <input name="title" required maxlength="40" placeholder="예: 팀 회의, 병원, 정보처리기사 시험, 헬스"></label>
+      <div class="inline"><label>날짜 <input type="date" name="date" required></label><label>종류 <select name="type" id="evType"></select></label></div>
+      <div class="inline"><label>시작 <input type="time" name="start" required></label><label>끝 <input type="time" name="end" required></label></div>
+      <div class="actions"><button type="button" id="evDel">🗑️ 삭제</button><span class="grow"></span><button type="button" id="evCancel">취소</button><button class="primary">저장</button></div>
+    </form>
+  </dialog>
+
   <dialog id="unitDlg" aria-labelledby="unitTitle">
     <form id="unitForm" class="tabform">
       <h2 id="unitTitle"></h2>
@@ -137,15 +149,13 @@
     <form id="tabForm" class="tabform">
       <h2 id="tabDlgTitle">＋ 탭 추가</h2>
       <label>탭 이름 <input name="name" maxlength="20" placeholder="예: 자격증 준비, 운동, 독서"></label>
-      <label>아이콘 <select name="emoji">
-        <option>📌</option><option>🎯</option><option>📖</option><option>💡</option><option>🏃</option><option>💪</option><option>🧠</option><option>💻</option><option>🎨</option><option>✈️</option><option>📝</option><option>🌱</option>
-      </select></label>
+      <label>아이콘 <select name="emoji" class="icons"></select></label>
       <p class="muted small">새 탭에는 체크리스트와 메모가 들어가요. 필요 없어지면 탭의 ✕로 지울 수 있어요.</p>
-      <label class="restore" id="restoreRow"><input type="checkbox" name="course"> 📚 교과 탭 다시 보이기</label>
+      <label class="restore" id="restoreRow"><input type="checkbox" name="course"> 📚 학습 탭 다시 보이기</label>
       <div class="actions"><button type="button" id="tabCancel">취소</button><span class="grow"></span><button class="primary">추가</button></div>
     </form>
   </dialog>
-  <datalist id="kinds"><option value="기말고사"><option value="중간고사"><option value="기말 발표"><option value="과제 마감"><option value="자격증 시험"></datalist>
+  <datalist id="kinds"><option value="마감"><option value="시험"><option value="발표"><option value="과제 마감"><option value="프로젝트 마감"><option value="자격증 시험"><option value="면접"><option value="중간고사"><option value="기말고사"></datalist>
 
   <script src="data.js"></script>
   <script src="logic.js"></script>

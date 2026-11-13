@@ -320,3 +320,16 @@ table.edit .x { border: none; background: none; color: var(--sub); box-shadow: n
 .brief .addtab { border-color: rgba(255, 255, 255, .5); color: #fff; }
 @media (max-width: 700px) { .brief .tabs { margin-left: 0; width: 100%; } }
 .count .cd { white-space: nowrap; }
+
+/* 일정 추가·수정 */
+#evDlg { width: min(440px, calc(100vw - 24px)); }
+.ty-job { background: #2563eb; } .ty-exercise { background: #22c55e; }
+.tt .col { cursor: copy; }
+.tt .blk.mine { cursor: pointer; outline: 2px solid rgba(255, 255, 255, .7); outline-offset: -2px; }
+.cal .day { cursor: pointer; }
+.cal .day .evc { display: block; margin-top: 3px; background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 0 5px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal .day .evc[data-i]:hover { border-color: var(--violet); }
+.cal .day .evc.more { background: none; border: none; color: var(--sub); }
+#weekAdd { margin-left: 6px; }
+table.edit select[name=type] { min-width: 120px; }
+table.edit input[name=from] { width: 70px; }
