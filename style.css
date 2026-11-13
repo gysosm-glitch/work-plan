@@ -293,6 +293,13 @@ table.edit .x { border: none; background: none; color: var(--sub); box-shadow: n
 
 /* 매주 관리 활동 */
 .wk.now { outline: 2px solid var(--sun); outline-offset: 1px; }
-#unitForm.weekly .roundrow, #unitForm.weekly #roundDone, #unitForm.weekly .rhint { display: none; }
+#unitForm.flex .roundrow, #unitForm.flex #roundDone, #unitForm.flex .rhint, #unitForm:not(.flex) #cellDel { display: none; }
 .wkchk { display: flex; gap: 5px; align-items: center; font-size: 13px; }
-.track-add:has(input[name=weekly]:checked) input[name=unit], .track-add:has(input[name=weekly]:checked) input[name=count] { display: none; }
+.track-add:has(input[name=flex]:checked) input[name=unit], .track-add:has(input[name=flex]:checked) input[name=count] { display: none; }
+
+/* 직접 만든 활동 칸 */
+.wk.flex { min-width: 110px; max-width: 200px; }
+.wk.flex span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.addcell { display: flex; gap: 6px; margin-top: 10px; }
+.addcell input { flex: 1; min-width: 0; }
+.addcell button { font-size: 13px; padding: 6px 12px; white-space: nowrap; }

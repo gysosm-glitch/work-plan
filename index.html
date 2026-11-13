@@ -87,10 +87,10 @@
         <ul class="plan" id="dayList"></ul>
       </section>
       <form class="card track-add" id="trackForm">
-        <h3>＋ 활동 항목 추가 <span class="muted small">"매주 관리"는 주차마다 준비 %·메모를, 끄면 단원마다 회독·진도를 기록해요(자격증·책 등)</span></h3>
+        <h3>＋ 활동 항목 추가 <span class="muted small">"칸 직접 만들기"는 준비할 일을 칸으로 만들어 %·메모를 적고, 끄면 단원마다 회독·진도를 기록해요(자격증·책 등)</span></h3>
         <input name="name" required maxlength="30" placeholder="예: 정보처리기사 필기" aria-label="항목 이름">
         <select name="emoji" aria-label="아이콘"><option>📝</option><option>📖</option><option>💻</option><option>🤖</option><option>🎸</option><option>🎯</option><option>🧠</option><option>🗣️</option></select>
-        <label class="wkchk"><input type="checkbox" name="weekly" checked> 매주 관리 (학기 주차별)</label>
+        <label class="wkchk"><input type="checkbox" name="flex" checked> 칸 직접 만들기 (활동 준비용)</label>
         <input name="unit" value="단원" maxlength="6" aria-label="단위 (단원·챕터·회차 등)">
         <input name="count" type="number" min="1" max="60" value="10" required aria-label="개수">
         <button class="primary">추가</button>
@@ -142,7 +142,7 @@
       <div class="roundrow"><span>회독 수</span><button type="button" data-r="-1" aria-label="회독 하나 빼기">−</button><b id="roundV">0</b><span>회독</span><button type="button" data-r="1" aria-label="회독 하나 더하기">＋</button></div>
       <label>어디까지 했는지 <input name="note" maxlength="60" placeholder="예: 슬라이드 1~20p, 기출 30번까지"></label>
       <p class="muted small rhint">한 바퀴를 다 끝냈으면 <b>✅ 1회독 완료</b>를 누르세요. 회독 수가 1 올라가고, 진도는 0%로 돌아가 다음 회독을 시작해요.</p>
-      <div class="actions"><button type="button" id="roundDone">✅ 1회독 완료</button><span class="grow"></span><button type="button" id="unitCancel">취소</button><button class="primary">저장</button></div>
+      <div class="actions"><button type="button" id="roundDone">✅ 1회독 완료</button><button type="button" id="cellDel">🗑️ 칸 삭제</button><span class="grow"></span><button type="button" id="unitCancel">취소</button><button class="primary">저장</button></div>
     </form>
   </dialog>
 

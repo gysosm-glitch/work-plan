@@ -18,12 +18,19 @@ let prog = load("wp.wprog", {}); // { 과목 또는 "t:항목id": { 주차·단�
 let rounds = load("wp.rounds", {}); // { 항목키: { 단위: 회독 수 } }
 let notes = load("wp.notes", {});   // { 항목키: { 단위: "어디까지 했는지" } }
 let trackers = load("wp.trackers", []);
+// 진도 항목: 단원식 { id, name, emoji, unit, count } 또는 칸을 직접 만드는 활동 { id, name, emoji, flex: true, entries: [{ id, title }] }
 if (!load("wp.actsSeeded", false)) {
   [["AX 프로젝트·스터디", "🤖"], ["동아리", "🎸"]].forEach(([name, emoji], i) => {
-    if (!trackers.some((t) => t.name === name)) trackers.push({ id: String(Date.now() + i), name, emoji, unit: "주", count: 0, weekly: true });
+    if (!trackers.some((t) => t.name === name)) trackers.push({ id: String(Date.now() + i), name, emoji, flex: true, entries: [] });
   });
   save("wp.trackers", trackers); save("wp.actsSeeded", true);
-} // 자격증·책 등 직접 만든 진도 항목: { id, name, emoji, unit, count }
+}
+for (const t of trackers.filter((x) => x.weekly)) {
+  const k = `t:${t.id}`, P = JSON.parse(localStorage.getItem("wp.wprog") || "{}")[k] || {}, N = JSON.parse(localStorage.getItem("wp.notes") || "{}")[k] || {};
+  t.entries = [...new Set([...Object.keys(P), ...Object.keys(N)])].filter((w) => P[w] || N[w]).sort((a, b) => a - b).map((w) => ({ id: w, title: `${w}주차` }));
+  t.flex = true; delete t.weekly; delete t.unit; delete t.count;
+  save("wp.trackers", trackers);
+}
 let logs = load("wp.logs", {});   // 예전 자동 배분 기록(지금은 백업·초기화용으로만 보관)
 let todos = load("wp.todos", {}); // { 주 월요일: [{ text, done }] }
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
@@ -152,13 +159,10 @@ function renderCal() {
 const PCTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 function trackList() {
   const cs = WP.courses(D, TODAY).map((c) => ({ key: c.course, name: c.course, emoji: "📘", unit: "주", units: WP.weekRange(c), course: c }));
-  const lastW = WP.weekOf(D, D.semester.end), cw = WP.weekOf(D, TODAY);
-  const ts = trackers.map((t) => ({ key: `t:${t.id}`, name: t.name, emoji: t.emoji, id: t.id, weekly: !!t.weekly,
-    unit: t.weekly ? "주" : t.unit, units: Array.from({ length: t.weekly ? lastW : t.count }, (_, i) => i + 1) }));
-  return [...cs, ...ts].map((x) => {
-    const us = x.weekly ? x.units.filter((u) => u <= Math.max(1, cw)) : x.units;
-    return { ...x, pct: us.length ? Math.round(us.reduce((a, u) => a + pctOf(x.key, u), 0) / us.length) : 0 };
-  });
+  const ts = trackers.map((t) => ({ key: `t:${t.id}`, name: t.name, emoji: t.emoji, id: t.id, flex: !!t.flex, unit: t.flex ? "칸" : t.unit,
+    units: t.flex ? t.entries.map((e) => e.id) : Array.from({ length: t.count }, (_, i) => i + 1),
+    labels: t.flex ? Object.fromEntries(t.entries.map((e) => [e.id, e.title])) : null }));
+  return [...cs, ...ts].map((x) => ({ ...x, pct: x.units.length ? Math.round(x.units.reduce((a, u) => a + pctOf(x.key, u), 0) / x.units.length) : 0 }));
 }
 // list: 그릴 항목들, el: 넣을 곳
 function renderTracks(list, el, empty) {
@@ -172,18 +176,20 @@ function renderTracks(list, el, empty) {
       : `<button class="x tdel" data-id="${x.id}" aria-label="${esc(x.name)} 항목 삭제" title="항목 삭제">✕</button>`;
     const cells = x.units.map((u) => {
       const p = curPct(x.key, u), r = roundsOf(x.key, u), n = (notes[x.key] || {})[u] || "";
-      return `<button class="wk${r || (x.weekly && p === 100) ? " on" : ""}${(c || x.weekly) && u > cw ? " future" : ""}${x.weekly && u === cw ? " now" : ""}" style="--p:${p}%" data-k="${esc(x.key)}" data-u="${u}" data-name="${esc(x.name)}" data-unit="${esc(x.unit)}"${x.weekly ? ' data-weekly="1"' : ""}
-        title="${n ? esc(n) : x.weekly ? "눌러서 준비 % · 어디까지 했는지 기록" : "눌러서 진도·회독·메모 기록"}"><span>${u}${esc(x.unit)}</span>${r ? `<b class="rd">${r}회독</b>` : ""}<small>${p}%</small>${n ? '<i class="nt">📝</i>' : ""}</button>`;
+      const lab = x.flex ? x.labels[u] : `${u}${x.unit}`;
+      return `<button class="wk${r || (x.flex && p === 100) ? " on" : ""}${c && u > cw ? " future" : ""}${x.flex ? " flex" : ""}" style="--p:${p}%" data-k="${esc(x.key)}" data-u="${esc(u)}" data-name="${esc(x.name)}" data-label="${esc(lab)}"${x.flex ? ` data-flex="${esc(x.id)}"` : ""}
+        title="${n ? esc(n) : x.flex ? "눌러서 준비 % · 어디까지 했는지 기록" : "눌러서 진도·회독·메모 기록"}"><span>${x.flex && p === 100 ? "✅ " : ""}${esc(lab)}</span>${r ? `<b class="rd">${r}회독</b>` : ""}<small>${p}%</small>${n ? '<i class="nt">📝</i>' : ""}</button>`;
     }).join("");
     const rs = x.units.map((u) => roundsOf(x.key, u)), avgR = rs.length ? (rs.reduce((a, b) => a + b, 0) / rs.length).toFixed(1) : 0;
     return `<article class="card course">
       <header><h3>${x.emoji} ${esc(x.name)}</h3>${head}</header>
       ${exams.length ? `<div class="exl">${exams.map((e) => `<span class="${e.date < TODAY ? "past" : ""}">🎯 ${esc(e.kind)} ${label(e.date)}${e.alt ? ` 또는 ${label(e.alt)}` : ""} <b>${e.date < TODAY ? "종료" : ddayTxt(WP.dday(TODAY, e.date))}</b></span>`).join("")}</div>` : ""}
       <div class="pbar"><i style="width:${x.pct}%"></i></div>
-      ${x.weekly
-        ? `<p class="small muted">이번 주(${cw}주차) 준비 <b>${curPct(x.key, cw)}%</b>${(notes[x.key] || {})[cw] ? ` · 📝 ${esc(notes[x.key][cw])}` : ""} · 지금까지 평균 <b>${x.pct}%</b></p>`
+      ${x.flex
+        ? `<p class="small muted">준비 끝낸 칸 <b>${fin} / ${x.units.length}</b> · 평균 <b>${x.pct}%</b></p>`
         : `<p class="small muted">진도 <b>${x.pct}%</b> · ${fin} / ${x.units.length}${esc(x.unit)} 끝냄 · 평균 <b>${avgR}회독</b></p>`}
-      <div class="weeks">${cells}</div>
+      <div class="weeks">${cells || (x.flex ? '<span class="muted small">아직 칸이 없어요. 아래에서 이번 활동 준비 칸을 만들어 보세요.</span>' : "")}</div>
+      ${x.flex ? `<form class="addcell" data-id="${esc(x.id)}"><input name="t" required maxlength="30" placeholder="예: 11/20 발표 준비, 2차 미팅 자료" aria-label="${esc(x.name)} 새 칸 이름"><button class="primary">＋ 칸 추가</button></form>` : ""}
     </article>`;
   }).join("") || `<p class="muted">${empty}</p>`;
 }
@@ -194,12 +200,12 @@ let unitSel = null, roundTmp = 0;
 const showRound = () => ($("roundV").textContent = roundTmp);
 const onCell = (e) => {
   const b = e.target.closest(".wk"); if (!b) return;
-  unitSel = { k: b.dataset.k, u: +b.dataset.u };
+  unitSel = { k: b.dataset.k, u: b.dataset.flex ? b.dataset.u : +b.dataset.u, flex: b.dataset.flex };
   roundTmp = roundsOf(unitSel.k, unitSel.u);
-  const weekly = !!b.dataset.weekly;
-  $("unitForm").classList.toggle("weekly", weekly);
-  $("pctLabel").textContent = weekly ? "이번 주 준비 진도" : "이번 회독 진도";
-  $("unitTitle").textContent = `${b.dataset.name} · ${unitSel.u}${weekly ? "주차" : b.dataset.unit}`;
+  const flex = !!b.dataset.flex;
+  $("unitForm").classList.toggle("flex", flex);
+  $("pctLabel").textContent = flex ? "준비 진도" : "이번 회독 진도";
+  $("unitTitle").textContent = `${b.dataset.name} · ${b.dataset.label}`;
   $("unitForm").pct.innerHTML = PCTS.map((v) => `<option value="${v}">${v}%</option>`).join("");
   $("unitForm").pct.value = curPct(unitSel.k, unitSel.u);
   $("unitForm").note.value = (notes[unitSel.k] || {})[unitSel.u] || "";
@@ -222,6 +228,24 @@ $("unitForm").onsubmit = (e) => { e.preventDefault(); saveUnit(+e.target.pct.val
 // 한 바퀴 끝: 회독 +1, 진도는 0%로 돌려 다음 회독 시작
 $("roundDone").onclick = () => { roundTmp += 1; saveUnit(0); };
 $("unitCancel").onclick = () => $("unitDlg").close();
+// 활동 칸 삭제
+$("cellDel").onclick = () => {
+  const { k, u, flex } = unitSel, t = trackers.find((x) => x.id === flex);
+  if (!t || !confirm("이 칸을 삭제할까요? 적어 둔 준비 %와 메모도 함께 지워져요.")) return;
+  t.entries = t.entries.filter((e) => e.id !== u);
+  for (const m of [prog, rounds, notes]) if (m[k]) delete m[k][u];
+  if (done[k]) done[k] = done[k].filter((x) => x !== u);
+  save("wp.trackers", trackers); save("wp.wprog", prog); save("wp.rounds", rounds); save("wp.notes", notes); save("wp.weeks", done);
+  $("unitDlg").close(); render();
+};
+// 활동 카드 안에서 칸 만들기
+$("acts").addEventListener("submit", (e) => {
+  const f = e.target.closest(".addcell"); if (!f) return;
+  e.preventDefault();
+  const t = trackers.find((x) => x.id === f.dataset.id), title = f.t.value.trim(); if (!t || !title) return;
+  t.entries.push({ id: `e${Date.now()}`, title });
+  save("wp.trackers", trackers); render();
+});
 $("acts").addEventListener("click", (e) => {
   const b = e.target.closest(".tdel"); if (!b) return;
   const t = trackers.find((x) => x.id === b.dataset.id);
@@ -233,9 +257,10 @@ $("acts").addEventListener("click", (e) => {
 });
 $("trackForm").onsubmit = (e) => {
   e.preventDefault();
-  const f = e.target.elements, weekly = f.weekly.checked, count = Math.round(+f.count.value);
-  if (!weekly && !(count >= 1 && count <= 60)) return alert("개수는 1~60 사이로 적어 주세요.");
-  trackers.push({ id: String(Date.now()), name: f.name.value.trim(), emoji: f.emoji.value, unit: weekly ? "주" : f.unit.value.trim() || "단원", count: weekly ? 0 : count, weekly });
+  const f = e.target.elements, flex = f.flex.checked, count = Math.round(+f.count.value);
+  if (!flex && !(count >= 1 && count <= 60)) return alert("개수는 1~60 사이로 적어 주세요.");
+  const id = String(Date.now()), name = f.name.value.trim(), emoji = f.emoji.value;
+  trackers.push(flex ? { id, name, emoji, flex: true, entries: [] } : { id, name, emoji, unit: f.unit.value.trim() || "단원", count });
   save("wp.trackers", trackers);
   e.target.reset();
   render();
@@ -486,7 +511,7 @@ if (TODAY >= START) {
   if (!load("wp.practiceDone", false)) {
     const sched = load("wp.schedule", {});
     save("wp.practice", { events: myEvents.filter((e) => e.date < START), weeks: done, wprog: prog, logs: before(logs), todos: before(todos), schedule: sched });
-    myEvents = myEvents.filter((e) => e.date >= START); const weeklyKeys = trackers.filter((t) => t.weekly).map((t) => `t:${t.id}`); const keepT = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => k.startsWith("t:") && !weeklyKeys.includes(k)));
+    myEvents = myEvents.filter((e) => e.date >= START); const flexKeys = trackers.filter((t) => t.flex).map((t) => `t:${t.id}`); trackers.forEach((t) => { if (t.flex) t.entries = []; }); save("wp.trackers", trackers); const keepT = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => k.startsWith("t:") && !flexKeys.includes(k)));
     done = keepT(done); prog = keepT(prog); rounds = keepT(rounds); notes = keepT(notes); save("wp.wprog", prog); save("wp.rounds", rounds); save("wp.notes", notes); logs = after(logs); todos = after(todos);
     save("wp.events", myEvents); save("wp.weeks", done); save("wp.logs", logs); save("wp.todos", todos); save("wp.schedule", {});
     D = { ...window.SCHEDULE };
