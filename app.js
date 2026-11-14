@@ -191,7 +191,7 @@ const PCTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 function trackList() {
   const cs = WP.courses(D, TODAY).map((c) => { const cu = courseUnits[c.course];
     return { key: c.course, name: c.course, emoji: "📘", unit: cu?.unit || "주", units: cu ? Array.from({ length: cu.count }, (_, i) => i + 1) : WP.weekRange(c), course: c }; });
-  const ts = trackers.map((t) => ({ key: `t:${t.id}`, name: t.name, emoji: t.emoji, id: t.id, flex: !!t.flex, unit: t.flex ? "칸" : t.unit,
+  const ts = trackers.map((t) => ({ key: `t:${t.id}`, name: t.name, emoji: t.emoji, id: t.id, tab: t.tab, flex: !!t.flex, unit: t.flex ? "칸" : t.unit,
     until: t.flex && t.match ? D.weekly.filter((w) => linkedTracker(w) === t).map((w) => w.until).filter(Boolean).sort().pop() : null,
     ...(t.flex
       ? (() => { const all = [...weekOcc(t), ...t.entries]; return { units: all.map((e) => e.id), labels: Object.fromEntries(all.map((e) => [e.id, e.title])) }; })()
@@ -207,7 +207,7 @@ function renderTracks(list, el, empty) {
     const exams = c ? D.exams.filter((e) => e.course === x.name).sort((a, b) => a.date.localeCompare(b.date)) : [];
     const head = c
       ? (x.unit === "주" ? `<span class="badge b-blue">${c.startWeek}주차부터 진도</span>` : "")
-      : `${x.until ? `<span class="badge ${TODAY > x.until ? "b-gray" : "b-amber"}">${TODAY > x.until ? "✅ 활동 종료" : `⏳ ${label(x.until)}까지`}</span>` : ""}<button class="x tdel" data-id="${x.id}" aria-label="${esc(x.name)} 항목 삭제" title="항목 삭제">✕</button>`;
+      : `${x.until ? `<span class="badge ${TODAY > x.until ? "b-gray" : "b-amber"}">${TODAY > x.until ? "✅ 종료" : `⏳ ${label(x.until)}까지`}</span>` : ""}<button class="x tdel" data-id="${x.id}" aria-label="${esc(x.name)} 항목 삭제" title="항목 삭제">✕</button>`;
     const cells = x.units.map((u) => {
       const p = curPct(x.key, u), r = roundsOf(x.key, u), n = (notes[x.key] || {})[u] || "";
       const lab = x.flex ? x.labels[u] : unitLabel(x, u);
@@ -222,7 +222,7 @@ function renderTracks(list, el, empty) {
       ${x.flex
         ? `<p class="small muted">준비 끝낸 칸 <b>${fin} / ${x.units.length}</b> · 평균 <b>${x.pct}%</b></p>`
         : `<p class="small muted">진도 <b>${x.pct}%</b> · ${fin} / ${x.units.length}${esc(x.unit)} 끝냄 · 평균 <b>${avgR}회독</b></p>`}
-      <div class="weeks">${cells || (x.flex ? '<span class="muted small">아직 칸이 없어요. 아래에서 이번 활동 준비 칸을 만들어 보세요.</span>' : "")}</div>
+      <div class="weeks">${cells || (x.flex ? '<span class="muted small">아직 칸이 없어요. 아래에서 이번 준비 칸을 만들어 보세요.</span>' : "")}</div>
       ${goalHtml(x)}
       ${x.flex ? `<form class="addcell" data-id="${esc(x.id)}"><input name="t" required maxlength="30" placeholder="예: 11/20 발표 준비, 2차 미팅 자료" aria-label="${esc(x.name)} 새 칸 이름"><button class="primary">＋ 칸 추가</button></form>` : ""}
     </article>`;
@@ -269,7 +269,7 @@ function goalHtml(x) {
     <form class="gadd" data-k="${esc(x.key)}"><input name="t" required maxlength="60" placeholder="예: 3~5${x.unit === "주" ? "주차" : esc(x.unit)} 2회독" aria-label="${esc(x.name)} 주간 목표"><button class="primary">＋ 목표</button></form>
   </div>`;
 }
-for (const el of [$("courses"), $("acts")]) {
+for (const el of [$("courses"), $("acts"), $("p-custom")]) {
   el.addEventListener("click", (e) => {
     const n = e.target.closest(".gnav"); if (n) { gWeek = WP.addDays(gWeek, +n.dataset.d); return render(); }
     const d = e.target.closest(".gdel"); if (!d) return;
@@ -288,7 +288,7 @@ for (const el of [$("courses"), $("acts")]) {
   });
 }
 const renderCourses = () => renderTracks(trackList().filter((x) => x.course), $("courses"), "마감·시험이 등록된 학습 항목이 없어요. ⚙️ 일정 편집에서 추가해 주세요.");
-const renderActs = () => renderTracks(trackList().filter((x) => !x.course), $("acts"), "아직 활동 항목이 없어요. 위에서 자격증·동아리 등을 추가해 보세요.");
+const renderActs = () => renderTracks(trackList().filter((x) => !x.course && !x.tab), $("acts"), "아직 프로젝트가 없어요. 위에서 추가해 보세요.");
 // 칸을 누르면 편집 창: 이번 회독 진도 %, 회독 수, 어디까지 했는지
 let unitSel = null, roundTmp = 0;
 const showRound = () => ($("roundV").textContent = roundTmp);
@@ -308,6 +308,7 @@ const onCell = (e) => {
 };
 $("courses").addEventListener("click", onCell);
 $("acts").addEventListener("click", onCell);
+$("p-custom").addEventListener("click", onCell);
 $("unitForm").addEventListener("click", (e) => {
   const r = e.target.closest("[data-r]"); if (r) { roundTmp = Math.max(0, roundTmp + +r.dataset.r); showRound(); }
 });
@@ -334,32 +335,36 @@ $("cellDel").onclick = () => {
   $("unitDlg").close(); render();
 };
 // 활동 카드 안에서 칸 만들기
-$("acts").addEventListener("submit", (e) => {
+const onAddCell = (e) => {
   const f = e.target.closest(".addcell"); if (!f) return;
   e.preventDefault();
   const t = trackers.find((x) => x.id === f.dataset.id), title = f.t.value.trim(); if (!t || !title) return;
   t.entries.push({ id: `e${Date.now()}`, title });
   save("wp.trackers", trackers); render();
-});
-$("acts").addEventListener("click", (e) => {
+};
+const onTrackDel = (e) => {
   const b = e.target.closest(".tdel"); if (!b) return;
   const t = trackers.find((x) => x.id === b.dataset.id);
   if (!confirm(`"${t.name}" 진도 항목을 삭제할까요? 기록한 %도 함께 지워져요.`)) return;
   trackers = trackers.filter((x) => x.id !== t.id);
-  for (const m of [prog, done, rounds, notes]) delete m[`t:${t.id}`];
-  save("wp.trackers", trackers); save("wp.wprog", prog); save("wp.weeks", done); save("wp.rounds", rounds); save("wp.notes", notes);
-  render();
-});
-$("trackForm").onsubmit = (e) => {
-  e.preventDefault();
-  const f = e.target.elements, flex = f.flex.checked, count = Math.round(+f.count.value);
-  if (!flex && !(count >= 1 && count <= 60)) return alert("개수는 1~60 사이로 적어 주세요.");
-  const id = String(Date.now()), name = f.name.value.trim(), emoji = f.emoji.value;
-  trackers.push(flex ? { id, name, emoji, flex: true, entries: [] } : { id, name, emoji, unit: f.unit.value.trim() || "단원", count });
-  save("wp.trackers", trackers);
-  e.target.reset();
+  for (const m of [prog, done, rounds, notes, goals]) delete m[`t:${t.id}`];
+  save("wp.trackers", trackers); save("wp.wprog", prog); save("wp.weeks", done); save("wp.rounds", rounds); save("wp.notes", notes); save("wp.goals", goals);
   render();
 };
+for (const el of [$("acts"), $("p-custom")]) { el.addEventListener("submit", onAddCell); el.addEventListener("click", onTrackDel); }
+// 항목 추가: 프로젝트 탭(#trackForm) 또는 주간 목표 탭 안의 .tform(그 탭에 속한다)
+function addTracker(e) {
+  e.preventDefault();
+  const f = e.target.elements, flex = f.flex.checked, count = Math.round(+f.count.value), tabId = e.target.dataset.tab;
+  if (!flex && !(count >= 1 && count <= 60)) return alert("개수는 1~60 사이로 적어 주세요.");
+  const id = String(Date.now()), name = f.name.value.trim(), emoji = f.emoji.value;
+  const t = flex ? { id, name, emoji, flex: true, entries: [] } : { id, name, emoji, unit: f.unit.value.trim() || "단원", count };
+  if (tabId) t.tab = tabId;
+  trackers.push(t); save("wp.trackers", trackers);
+  e.target.reset();
+  render();
+}
+$("trackForm").onsubmit = addTracker;
 
 /* ---------- 상단 메뉴: 주간·월간·활동은 고정, 학습과 내가 만든 탭은 추가·삭제. 주소(#week 등)와 함께 바뀌어 뒤로 가기가 된다 ---------- */
 const customTab = (id) => tabsCfg.custom.find((c) => c.id === id);
@@ -368,7 +373,7 @@ const saveTabs = () => save("wp.tabs", tabsCfg);
 function renderTabs() {
   const btn = (k, n, rm) => `<span class="tabw"><button role="tab" data-tab="${k}" aria-selected="${tab === k}">${esc(n)}</button>${rm ? `<button class="tabx" data-rm="${k}" aria-label="${esc(n)} 탭 삭제" title="탭 삭제">✕</button>` : ""}</span>`;
   $("tabs").innerHTML = btn("week", "🗓️ 주간 계획") + btn("month", "📆 월간") +
-    (tabsCfg.course ? btn("course", "📚 학습", true) : "") + btn("day", "🎯 활동") +
+    (tabsCfg.course ? btn("course", "📚 학습", true) : "") + btn("day", "🚀 프로젝트") +
     tabsCfg.custom.map((c) => btn(c.id, `${c.emoji} ${c.name}`, true)).join("") +
     `<button class="addtab" id="addTab">＋ 탭 추가</button>`;
 }
@@ -396,6 +401,18 @@ const checkItems = (list, empty) => list.map((t, i) => `<li class="${t.done ? "f
     <button class="x" data-i="${i}" aria-label="${esc(t.text)} 삭제">✕</button></li>`).join("") || `<li class="muted">${empty}</li>`;
 
 function renderCustom(c) {
+  if (c.kind === "track") {
+    $("p-custom").innerHTML = `<form class="card track-add tform" data-tab="${c.id}">
+        <h3>＋ ${esc(c.name)} 항목 추가 <span class="muted small">단원·챕터·회차가 있으면 단위와 개수를 적고(회독 기록), 없으면 "칸 직접 만들기"를 켜요</span></h3>
+        <input name="name" required maxlength="30" placeholder="예: 정보처리기사 필기, 헬스, 올해 읽을 책" aria-label="항목 이름">
+        <select name="emoji" class="icons" aria-label="아이콘">${ICONS.map(([ic, n]) => `<option value="${ic}"${ic === c.emoji ? " selected" : ""}>${ic} ${n}</option>`).join("")}</select>
+        <label class="wkchk"><input type="checkbox" name="flex"> 칸 직접 만들기</label>
+        <input name="unit" value="단원" maxlength="6" aria-label="단위 (단원·챕터·회차 등)">
+        <input name="count" type="number" min="1" max="60" value="10" required aria-label="개수">
+        <button class="primary">추가</button>
+      </form><div class="courses" id="tcards"></div>`;
+    return renderTracks(trackList().filter((x) => x.tab === c.id), $("tcards"), "아직 항목이 없어요. 위에서 추가해 보세요.");
+  }
   const n = c.items.filter((t) => t.done).length;
   $("p-custom").innerHTML = `<section class="card custom">
     <h2>${esc(c.emoji)} ${esc(c.name)} <span class="right muted small">${c.items.length ? `${n} / ${c.items.length} 완료${n === c.items.length ? " 🎉" : ""}` : ""}</span></h2>
@@ -406,7 +423,7 @@ function renderCustom(c) {
   </section>`;
 }
 $("p-custom").addEventListener("change", (e) => {
-  const c = customTab(tab); if (!c) return;
+  const c = customTab(tab); if (!c || c.kind === "track") return;
   if (e.target.classList.contains("cmemo")) { c.memo = e.target.value; return saveTabs(); }
   const i = +e.target.dataset.i;
   if (e.target.type === "checkbox") c.items[i].done = e.target.checked;
@@ -415,12 +432,14 @@ $("p-custom").addEventListener("change", (e) => {
   saveTabs(); renderCustom(c);
 });
 $("p-custom").addEventListener("click", (e) => {
-  const b = e.target.closest(".x"); const c = customTab(tab); if (!b || !c) return;
+  const b = e.target.closest(".x"); const c = customTab(tab); if (!b || !c || c.kind === "track") return;
   c.items.splice(+b.dataset.i, 1); saveTabs(); renderCustom(c);
 });
 $("p-custom").addEventListener("submit", (e) => {
+  if (e.target.classList.contains("tform")) return addTracker(e);
+  const c = customTab(tab); if (!c || c.kind === "track" || !e.target.classList.contains("cform")) return;
   e.preventDefault();
-  const c = customTab(tab), v = e.target.t.value.trim(); if (!c || !v) return;
+  const v = e.target.t.value.trim(); if (!v) return;
   c.items.push({ text: v, done: false }); saveTabs(); renderCustom(c);
 });
 
@@ -432,9 +451,12 @@ $("tabs").onclick = (e) => {
       if (!confirm("📚 학습 탭을 숨길까요? 기록은 그대로 남고, ＋ 탭 추가에서 다시 켤 수 있어요.")) return;
       tabsCfg.course = false;
     } else {
-      const c = customTab(k);
-      if (!confirm(`"${c.name}" 탭을 삭제할까요? 안에 있는 항목 ${c.items.length}개와 메모도 함께 지워져요.`)) return;
+      const c = customTab(k), own = trackers.filter((t) => t.tab === k);
+      if (!confirm(`"${c.name}" 탭을 삭제할까요? 안에 있는 항목 ${c.kind === "track" ? own.length : c.items.length}개와 기록도 함께 지워져요.`)) return;
       tabsCfg.custom = tabsCfg.custom.filter((x) => x.id !== k);
+      trackers = trackers.filter((t) => t.tab !== k); save("wp.trackers", trackers);
+      for (const m of [prog, done, rounds, notes, goals]) for (const t of own) delete m[`t:${t.id}`];
+      save("wp.wprog", prog); save("wp.weeks", done); save("wp.rounds", rounds); save("wp.notes", notes); save("wp.goals", goals);
     }
     saveTabs(); return setTab(tab === k ? "week" : tab);
   }
@@ -452,7 +474,7 @@ $("tabForm").onsubmit = (e) => {
   if (!name && !restore) return alert("탭 이름을 적어 주세요.");
   let go = tab;
   if (restore) { tabsCfg.course = true; go = "course"; }
-  if (name) { const id = `c${Date.now()}`; tabsCfg.custom.push({ id, name, emoji: f.elements.emoji.value, items: [], memo: "" }); go = id; }
+  if (name) { const id = `c${Date.now()}`; tabsCfg.custom.push({ id, name, emoji: f.elements.emoji.value, items: [], memo: "", kind: f.elements.kind.value }); go = id; }
   saveTabs(); $("tabDlg").close(); setTab(go);
 };
 function render() { renderBriefing(); renderPanel(); }
