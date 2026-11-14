@@ -49,10 +49,15 @@ for (const t of trackers.filter((x) => x.weekly)) {
 let logs = load("wp.logs", {});   // 예전 자동 배분 기록(지금은 백업·초기화용으로만 보관)
 let todos = load("wp.todos", {}); // 예전 "준비할 것" 기록(지금은 백업·초기화용으로만 보관)
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
-if (window.STUDY_PLAN && !load("wp.studyPlanSeeded", false)) { // 기말 공부 계획 탭을 한 번만 넣는다
-  const p = window.STUDY_PLAN;
-  tabsCfg.custom.push({ id: "c-study", name: p.name, emoji: p.emoji, items: p.items.map((text) => ({ text, done: false })), memo: p.memo });
-  save("wp.tabs", tabsCfg); save("wp.studyPlanSeeded", true);
+if (window.STUDY_PLAN && +load("wp.studyPlanSeeded", 0) < window.STUDY_PLAN.v) { // 기말 공부 계획 탭: 처음엔 만들고, 계획 버전이 오르면 갱신
+  const p = window.STUDY_PLAN, old = tabsCfg.custom.find((c) => c.id === "c-study");
+  if (!old) tabsCfg.custom.push({ id: "c-study", name: p.name, emoji: p.emoji, items: p.items.map((text) => ({ text, done: false })), memo: p.memo });
+  else { // 체크한 항목과 직접 추가한 항목은 지킨다
+    const doneTx = new Set(old.items.filter((t) => t.done).map((t) => t.text));
+    const extra = old.items.filter((t) => !p.items.includes(t.text) && (t.done || !p.removed.includes(t.text)));
+    old.items = [...p.items.map((text) => ({ text, done: doneTx.has(text) })), ...extra];
+  }
+  save("wp.tabs", tabsCfg); save("wp.studyPlanSeeded", p.v);
 }
 let tab = load("wp.tab", "week");
 let sel = TODAY;
