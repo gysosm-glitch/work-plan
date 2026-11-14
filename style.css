@@ -360,13 +360,20 @@ table.edit input[name=from] { width: 70px; }
 .xl-menu button:hover { background: #f1eefb; }
 .xl-menu button.primary { background: var(--accent); color: #fff; }
 .xl-menu p { margin: 4px 6px; font-size: 11px; color: #6e6a8f; }
-/* 학습 항목: 오늘 강조 + 과목별 회독 칩 */
-.todos li.today { background: #fff8db; box-shadow: 0 0 0 2px var(--sun); }
-.rround { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 12px; }
-.rchips { display: inline-flex; align-items: center; gap: 3px; }
-.rchips b { margin-right: 4px; }
-.rchips i { font-style: normal; font-size: 1.15em; color: #cbd5e1; }
+/* 🎯 주간 목표 + ①~⑤ 회독 칩 */
+.goals { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.ghead { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.ghead .right { margin-left: auto; }
+.glist { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.glist li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: #fff; border: 1px solid var(--line); }
+.glist li.fin .gtx { color: var(--sub); text-decoration: line-through; }
+.glist .gtx { flex: 1; min-width: 0; }
+.glist .gst { flex: none; min-width: 36px; text-align: center; font-weight: 700; font-size: .85em; color: #a76300; }
+.glist input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--mint); flex: none; }
+.gadd { display: flex; gap: 6px; }
+.gadd input { flex: 1; min-width: 0; }
+.rchips { display: inline-flex; gap: 2px; font-size: 1.1em; }
+.rchips i { font-style: normal; color: #cbd5e1; }
 .rchips i.half { color: var(--sun); }
 .rchips i.on { color: var(--mint); font-weight: 700; }
-.rchips i.none { visibility: hidden; }
-.todos.study { grid-template-columns: 1fr; }
+.rchips i.none { opacity: .35; }

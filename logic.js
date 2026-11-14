@@ -45,6 +45,13 @@
   const weekRange = (c) => { const out = []; for (let w = c.startWeek; w <= c.lastWeek; w++) out.push(w); return out; };
 
 
-  const api = { pad, parse, fmt, addDays, toMin, dday, mondayOf, itemsForDate, busyHours, examsOn, weekOf, courses, weekRange, DAY_HOURS };
+  // "3~5주차 2회독", "CH 1~3 1회독", "1~4단원 2회독" → { units: [3,4,5], round: 2 }. 범위나 회독이 없으면 직접 체크하는 목표
+  function parseGoal(text) {
+    const r = text.match(/(\d)회독/), m = text.replace(/\d(?:~\d)?회독/g, "").match(/\d+(?:~\d+)?(?:\s*,\s*\d+(?:~\d+)?)*/);
+    const units = m ? m[0].split(",").flatMap((x) => { const [a, b = a] = x.split("~").map(Number); return Array.from({ length: Math.min(100, Math.max(0, b - a + 1)) }, (_, i) => a + i); }) : [];
+    return units.length && r ? { units, round: +r[1] } : {};
+  }
+
+  const api = { pad, parse, fmt, addDays, toMin, dday, mondayOf, itemsForDate, busyHours, examsOn, weekOf, courses, weekRange, parseGoal, DAY_HOURS };
   if (typeof module !== "undefined") module.exports = api; else root.WP = api;
 })(this);

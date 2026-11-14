@@ -32,4 +32,11 @@ assert.ok(W.itemsForDate(D, "2026-12-01").some((i) => i.title === "동아리 활
 assert.strictEqual(W.courses({ ...D, exams: [{ course: "X", kind: "마감", date: "2026-12-10", from: 5 }] }, "2026-11-12")[0].startWeek, 5);
 // 같은 이름 마감이 여러 개면 가장 이른 시작 주차
 assert.strictEqual(W.courses({ ...D, exams: [{ course: "Y", kind: "기말", date: "2026-11-30", from: 1 }, { course: "Y", kind: "발표", date: "2026-12-14", from: 9 }] }, "2026-11-12")[0].startWeek, 1);
+// 주간 목표: 범위 + 회독
+assert.deepStrictEqual(W.parseGoal("6~7, 9~10주차 1회독 완료(8주차 제외)"), { units: [6, 7, 9, 10], round: 1 });
+assert.deepStrictEqual(W.parseGoal("CH 1~3 1회독: 목차 스캔"), { units: [1, 2, 3], round: 1 });
+assert.deepStrictEqual(W.parseGoal("13주차 신규 수업 당일 1~2회독(이론+실습)"), { units: [13], round: 2 });
+assert.deepStrictEqual(W.parseGoal("헬스 3번"), {}); // 회독 없음 → 직접 체크
+// 기말 계획은 전부 과목 줄임말이 맞아야 한다
+for (const t of window.STUDY_PLAN.items) for (const ab of t.match(/\[([^\]]+)\]/)[1].split("/")) assert.ok(window.STUDY_PLAN.subjects[ab], t);
 console.log("ok");
