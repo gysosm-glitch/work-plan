@@ -360,3 +360,13 @@ table.edit input[name=from] { width: 70px; }
 .xl-menu button:hover { background: #f1eefb; }
 .xl-menu button.primary { background: var(--accent); color: #fff; }
 .xl-menu p { margin: 4px 6px; font-size: 11px; color: #6e6a8f; }
+/* 학습 항목: 오늘 강조 + 과목별 회독 칩 */
+.todos li.today { background: #fff8db; box-shadow: 0 0 0 2px var(--sun); }
+.rround { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 12px; }
+.rchips { display: inline-flex; align-items: center; gap: 3px; }
+.rchips b { margin-right: 4px; }
+.rchips i { font-style: normal; font-size: 1.15em; color: #cbd5e1; }
+.rchips i.half { color: var(--sun); }
+.rchips i.on { color: var(--mint); font-weight: 700; }
+.rchips i.none { visibility: hidden; }
+.todos.study { grid-template-columns: 1fr; }

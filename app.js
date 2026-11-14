@@ -49,6 +49,11 @@ for (const t of trackers.filter((x) => x.weekly)) {
 let logs = load("wp.logs", {});   // 예전 자동 배분 기록(지금은 백업·초기화용으로만 보관)
 let todos = load("wp.todos", {}); // 예전 "준비할 것" 기록(지금은 백업·초기화용으로만 보관)
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
+if (window.STUDY_PLAN && !load("wp.studyPlanSeeded", false)) { // 기말 공부 계획 탭을 한 번만 넣는다
+  const p = window.STUDY_PLAN;
+  tabsCfg.custom.push({ id: "c-study", name: p.name, emoji: p.emoji, items: p.items.map((text) => ({ text, done: false })), memo: p.memo });
+  save("wp.tabs", tabsCfg); save("wp.studyPlanSeeded", true);
+}
 let tab = load("wp.tab", "week");
 let sel = TODAY;
 let view = TODAY.slice(0, 7);
@@ -313,17 +318,38 @@ function renderPanel() {
 }
 
 // 체크리스트 한 줄(준비할 것·내가 만든 탭 공용)
-const checkItems = (list, empty) => list.map((t, i) => `<li class="${t.done ? "fin" : ""}">
+// 학습 항목 "11/16(월) [과목] … 2회독" 에서 날짜·과목·회독을 읽는다. 형식이 아니면 빈 값.
+// shortcut: 연도는 올해로 가정, 해를 넘기는 계획을 쓰게 되면 항목에 연도를 적도록 교체
+const studyOf = (text) => {
+  const d = text.match(/^(\d{1,2})\/(\d{1,2})/), s = text.match(/\[([^\]]+)\]/), r = text.match(/(\d)(?:~\d)?회독/);
+  return { date: d ? `${TODAY.slice(0, 4)}-${WP.pad(+d[1])}-${WP.pad(+d[2])}` : "", subj: s?.[1] || "", round: r ? +r[1] : 0 };
+};
+const studyTag = (t) => {
+  const s = studyOf(t.text);
+  return (s.round ? `<span class="badge b-blue">${s.round}회독</span>` : "") + (s.date && s.date < TODAY && !t.done ? '<span class="badge b-amber">⏰ 밀림</span>' : "");
+};
+// 과목별 ①~⑤: 그 회독 항목을 다 체크하면 채워진다
+function roundChips(list) {
+  const subs = [...new Set(list.map((t) => studyOf(t.text)).filter((s) => s.round && s.subj).map((s) => s.subj))];
+  return subs.map((sub) => `<span class="rchips"><b>${esc(sub)}</b>${[1, 2, 3, 4, 5].map((r) => {
+    const its = list.filter((t) => { const s = studyOf(t.text); return s.subj === sub && s.round === r; });
+    const st = !its.length ? "none" : its.every((t) => t.done) ? "on" : its.some((t) => t.done) ? "half" : "";
+    return `<i class="${st}" title="${r}회독 ${its.filter((t) => t.done).length}/${its.length}">${"①②③④⑤"[r - 1]}</i>`;
+  }).join("")}</span>`).join("");
+}
+
+const checkItems = (list, empty) => list.map((t, i) => `<li class="${t.done ? "fin" : ""}${studyOf(t.text).date === TODAY ? " today" : ""}">
     <input type="checkbox" data-i="${i}"${t.done ? " checked" : ""} aria-label="${esc(t.text)} 완료">
     <input class="tx" data-i="${i}" value="${esc(t.text)}" aria-label="항목 내용">
-    ${t.carry ? '<span class="badge b-amber" title="지난주에 못 해서 넘어온 항목">⏩ 이월</span>' : ""}${t.auto ? '<span class="badge b-blue" title="시험·일정에서 자동으로 뽑은 항목">🗓️ 자동</span>' : ""}
+    ${studyTag(t)}${t.carry ? '<span class="badge b-amber" title="지난주에 못 해서 넘어온 항목">⏩ 이월</span>' : ""}${t.auto ? '<span class="badge b-blue" title="시험·일정에서 자동으로 뽑은 항목">🗓️ 자동</span>' : ""}
     <button class="x" data-i="${i}" aria-label="${esc(t.text)} 삭제">✕</button></li>`).join("") || `<li class="muted">${empty}</li>`;
 
 function renderCustom(c) {
   const n = c.items.filter((t) => t.done).length;
   $("p-custom").innerHTML = `<section class="card custom">
     <h2>${esc(c.emoji)} ${esc(c.name)} <span class="right muted small">${c.items.length ? `${n} / ${c.items.length} 완료${n === c.items.length ? " 🎉" : ""}` : ""}</span></h2>
-    <ul class="todos">${checkItems(c.items, "아직 항목이 없어요. 아래에서 추가해 보세요.")}</ul>
+    ${roundChips(c.items) ? `<div class="rround">${roundChips(c.items)}</div>` : ""}
+    <ul class="todos${roundChips(c.items) ? " study" : ""}">${checkItems(c.items, "아직 항목이 없어요. 아래에서 추가해 보세요.")}</ul>
     <form class="todo-add cform"><input name="t" placeholder="할 일 추가" required maxlength="60" aria-label="할 일 추가"><button class="primary">추가</button></form>
     <h2 class="mt">📝 메모</h2>
     <textarea class="cmemo" rows="6" placeholder="자유롭게 적어요." aria-label="${esc(c.name)} 메모">${esc(c.memo)}</textarea>
