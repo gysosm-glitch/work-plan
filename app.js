@@ -453,7 +453,15 @@ $("p-custom").addEventListener("submit", (e) => {
 });
 
 /* ---------- 🎯 집중: 학습·할 일을 방해하는 요소를 정리하고, 대처 규칙을 매일 지켰는지 체크한다 ---------- */
-const FOCUS_PRESETS = [["📱", "쇼츠·릴스"], ["💬", "SNS·메신저"], ["📺", "유튜브"], ["🎮", "게임"], ["🛒", "쇼핑앱 구경"], ["🌙", "자기 전 폰"]];
+// 방해 요소 버튼: 누르면 언제·규칙·대신 할 것까지 채운다. star = "✨ 추천 규칙" 묶음(처음 2주용)
+// 시간은 "하루 몇 분"이 아니라 "이 상황·시간대엔 안 한다"는 경계로만 쓴다(지켰는지 바로 알 수 있게)
+const FOCUS_PRESETS = [
+  { name: "📱 쇼츠·릴스·유튜브", when: "공부하다 막힐 때, 쉬는 시간에 \"잠깐만\"", rule: "쇼츠·릴스 앱은 홈 화면에서 빼고, 공부할 땐 폰은 가방에. 보고 싶으면 그날 할 일 끝난 뒤에만", alt: "5분 스트레칭·물 한 잔", star: true },
+  { name: "🌙 자기 전 폰", when: "자려고 누웠을 때", rule: "밤 12시 이후 폰은 책상에서 충전(알람만). 알바 날(수·토)은 12시 30분까지", alt: "내일 할 일 3개 적기", star: true },
+  { name: "💬 SNS·메신저 알림", when: "공부·수업 중 알림이 올 때", rule: "공부·수업 시간엔 방해 금지 모드. 답장은 50분 공부 후 쉬는 10분에 몰아서", alt: "떠오른 건 메모에 적어 두기", star: true },
+  { name: "🎮 게임", when: "과제 시작 전, 머리 식힌다며", rule: "평일엔 할 일 끝난 뒤 한 판만, 시험 주간엔 쉬기", alt: "10분 산책" },
+  { name: "🛒 쇼핑앱 구경", when: "심심할 때, 자기 전", rule: "장바구니에 담기만 하고 결제는 다음 날 다시 보고 결정", alt: "가계부에서 이번 달 남은 예산 보기" },
+];
 let fWeek = WP.mondayOf(TODAY);
 function renderFocus(c) {
   c.foci ||= []; c.checks ||= {}; c.memos ||= {};
@@ -473,7 +481,8 @@ function renderFocus(c) {
   }).join("");
   $("p-custom").innerHTML = `<section class="card focus-add">
       <h3>＋ 방해 요소 추가 <span class="muted small">학습·할 일을 방해하는 것을 적고, 대신 지킬 규칙을 정해 매일 체크해요</span></h3>
-      <div class="presets">${FOCUS_PRESETS.map(([ic, n]) => `<button type="button" data-p="${ic} ${n}">${ic} ${n}</button>`).join("")}</div>
+      <div class="presets"><button type="button" class="primary" id="fStar">✨ 추천 규칙 3개 넣기</button>${FOCUS_PRESETS.map((p, i) => `<button type="button" data-p="${i}">${esc(p.name)}</button>`).join("")}</div>
+      <p class="muted small">버튼을 누르면 아래 칸이 추천 규칙으로 채워져요. 내 상황에 맞게 고친 뒤 추가하세요. 체크 기준: 그날 규칙을 한 번이라도 어겼으면 ❌</p>
       <form class="form fform">
         <input class="full" name="name" required maxlength="30" placeholder="방해 요소 (예: 📱 쇼츠·릴스)" aria-label="방해 요소">
         <input class="full" name="when" maxlength="60" placeholder="⏰ 언제 생기나 (예: 공부하다 막힐 때, 자기 전 침대에서)" aria-label="언제 생기나">
@@ -496,7 +505,14 @@ $("p-custom").addEventListener("click", (e) => {
     saveTabs(); return renderFocus(c);
   }
   const nav = e.target.closest(".fnav"); if (nav) { fWeek = WP.addDays(fWeek, +nav.dataset.d); return renderFocus(c); }
-  const p = e.target.closest("[data-p]"); if (p) { const f = $("p-custom").querySelector(".fform").elements; f.name.value = p.dataset.p; return f.when.focus(); }
+  const p = e.target.closest("[data-p]");
+  if (p) { const f = $("p-custom").querySelector(".fform").elements, x = FOCUS_PRESETS[+p.dataset.p]; for (const k of ["name", "when", "rule", "alt"]) f[k].value = x[k]; return f.rule.focus(); }
+  if (e.target.closest("#fStar")) { // 이미 같은 이름이 있으면 건너뜀
+    const add = FOCUS_PRESETS.filter((x) => x.star && !c.foci.some((f) => f.name === x.name));
+    if (!add.length) return alert("추천 규칙 3개가 이미 들어 있어요.");
+    add.forEach((x, i) => c.foci.push({ id: `f${Date.now() + i}`, name: x.name, when: x.when, rule: x.rule, alt: x.alt }));
+    saveTabs(); return renderFocus(c);
+  }
   const del = e.target.closest(".fdel");
   if (del && confirm("이 방해 요소를 지울까요? 체크 기록도 함께 지워져요.")) {
     c.foci = c.foci.filter((f) => f.id !== del.dataset.f); delete c.checks[del.dataset.f]; saveTabs(); renderFocus(c);
