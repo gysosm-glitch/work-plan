@@ -377,3 +377,23 @@ table.edit input[name=from] { width: 70px; }
 .rchips i.half { color: var(--sun); }
 .rchips i.on { color: var(--mint); font-weight: 700; }
 .rchips i.none { opacity: .35; }
+
+/* 🎯 집중 */
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+.presets button { font-size: 13px; padding: 5px 12px; border-radius: 999px; }
+.fhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 4px 2px; }
+.fhead .x { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 2px 10px; }
+.card.focus header { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.card.focus header h3 { margin: 0; font-size: 18px; }
+.card.focus header .x { margin-left: auto; border: none; background: none; color: var(--sub); box-shadow: none; }
+.fmeta { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0 0 10px; font-size: 13px; }
+.fmeta dt { color: var(--sub); white-space: nowrap; }
+.fmeta dd { margin: 0; }
+.fweek { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.fday { display: grid; justify-items: center; gap: 2px; padding: 6px 0; border-radius: 10px; border: 1px solid var(--line); background: #fff; font-size: 12px; color: var(--sub); box-shadow: none; }
+.fday b { font-size: 16px; color: var(--ink); }
+.fday.ok { background: #e3f8ef; border-color: #8edcbc; }
+.fday.no { background: #fff0f3; border-color: #ffc9d3; }
+.fday.today { outline: 2px solid var(--sun); outline-offset: 1px; }
+.fday:disabled { opacity: .35; cursor: default; }
+.fmemo { width: 100%; resize: vertical; background: #fffdf5; line-height: 1.6; }

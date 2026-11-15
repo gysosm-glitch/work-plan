@@ -52,6 +52,13 @@
     return units.length && r ? { units, round: +r[1] } : {};
   }
 
-  const api = { pad, parse, fmt, addDays, toMin, dday, mondayOf, itemsForDate, busyHours, examsOn, weekOf, courses, weekRange, parseGoal, DAY_HOURS };
+  // 🎯 집중: checks { "YYYY-MM-DD": 1(지킴) | 0(못 지킴) } → 오늘(아직 기록 없으면 어제)부터 거꾸로 이어서 지킨 날 수
+  function streak(checks, today) {
+    let d = checks[today] === undefined ? addDays(today, -1) : today, n = 0;
+    while (checks[d] === 1) { n++; d = addDays(d, -1); }
+    return n;
+  }
+
+  const api = { pad, parse, fmt, addDays, toMin, dday, mondayOf, itemsForDate, busyHours, examsOn, weekOf, courses, weekRange, parseGoal, streak, DAY_HOURS };
   if (typeof module !== "undefined") module.exports = api; else root.WP = api;
 })(this);
