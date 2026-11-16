@@ -37,9 +37,4 @@ assert.deepStrictEqual(W.parseGoal("6~7, 9~10주차 1회독 완료(8주차 제�
 assert.deepStrictEqual(W.parseGoal("CH 1~3 1회독: 목차 스캔"), { units: [1, 2, 3], round: 1 });
 assert.deepStrictEqual(W.parseGoal("13주차 신규 수업 당일 1~2회독(이론+실습)"), { units: [13], round: 2 });
 assert.deepStrictEqual(W.parseGoal("헬스 3번"), {}); // 회독 없음 → 직접 체크
-// 🎯 집중 연속 일수
-assert.strictEqual(W.streak({ "2026-11-13": 1, "2026-11-14": 1 }, "2026-11-15"), 2); // 오늘 기록 없음 → 어제부터
-assert.strictEqual(W.streak({ "2026-11-14": 1, "2026-11-15": 1 }, "2026-11-15"), 2);
-assert.strictEqual(W.streak({ "2026-11-14": 1, "2026-11-15": 0 }, "2026-11-15"), 0); // 오늘 못 지킴 → 0
-assert.strictEqual(W.streak({ "2026-11-12": 1, "2026-11-14": 1 }, "2026-11-15"), 1); // 중간에 빈 날이 있으면 끊김
 console.log("ok");

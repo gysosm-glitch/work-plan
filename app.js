@@ -19,8 +19,8 @@ const TYPE = {
   work: ["💼", "아르바이트·근무"], field: ["🚗", "현장·외근"], appt: ["📍", "약속"], cert: ["📝", "자격증·시험"],
   study: ["✏️", "공부"], prep: ["🗂️", "준비"], exercise: ["🏃", "운동"],
 };
-// 진도·활동 항목 아이콘(고를 때 이름도 같이 보이게)
-const ICONS = [["📝", "자격증"], ["🏃", "운동"], ["💼", "인턴·업무"], ["🤖", "프로젝트"], ["🎸", "동아리"], ["📖", "독서"], ["💻", "코딩"], ["🗣️", "어학"], ["🎯", "목표"], ["🧠", "공부"], ["💡", "아이디어"], ["✈️", "여행"], ["🌱", "습관"], ["📌", "기타"]];
+// 항목·탭 아이콘은 4가지 분류로만(고를 때 이름도 같이 보이게). 예전에 다른 아이콘으로 만든 항목은 그대로 둔다
+const ICONS = [["🚀", "자기 계발"], ["🏃", "운동"], ["📚", "학습"], ["🌱", "습관"]];
 const TYPE_NAME = Object.fromEntries(Object.entries(TYPE).map(([k, [, n]]) => [k, n]));
 const TYPE_COLOR = { job: "#2563eb", exercise: "#22c55e", class: "#4f7cff", meeting: "#8b5cf6", club: "#10b981", work: "#f59e0b", field: "#06b6d4", appt: "#ec4899", cert: "#f43f5e", etc: "#94a3b8", study: "#f5b301", prep: "#14b8a6" };
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
@@ -50,8 +50,12 @@ let logs = load("wp.logs", {});   // 예전 자동 배분 기록(지금은 백�
 let todos = load("wp.todos", {}); // 예전 "준비할 것" 기록(지금은 백업·초기화용으로만 보관)
 let tabsCfg = load("wp.tabs", { course: true, custom: [] }); // 과목 진도 표시 여부 + 내가 만든 탭
 if (!load("wp.focusSeeded", false)) {
-  if (!tabsCfg.custom.some((c) => c.kind === "focus")) tabsCfg.custom.push({ id: "c-focus", name: "집중", emoji: "🎯", kind: "focus", items: [], memo: "", foci: [], checks: {}, memos: {} });
+  if (!tabsCfg.custom.some((c) => c.kind === "focus")) tabsCfg.custom.push({ id: "c-focus", name: "집중", emoji: "🎯", kind: "focus", items: [], memo: "" });
   save("wp.tabs", tabsCfg); save("wp.focusSeeded", true);
+}
+if (!load("wp.focusReset", false)) { // 방해 요소 카드·체크 방식 → 메모 방식으로 바꾸면서 한 번 비운다
+  for (const c of tabsCfg.custom) if (c.kind === "focus") { c.memo = ""; delete c.foci; delete c.checks; delete c.memos; }
+  save("wp.tabs", tabsCfg); save("wp.focusReset", true);
 }
 const parseGoal = WP.parseGoal;
 let courseUnits = load("wp.courseUnits", {}); // 주차 대신 다른 단위로 공부하는 과목 { 과목: { unit: "CH", count: 9 } }
@@ -445,82 +449,16 @@ $("p-custom").addEventListener("submit", (e) => {
   c.items.push({ text: v, done: false }); saveTabs(); renderCustom(c);
 });
 
-/* ---------- 🎯 집중: 학습·할 일을 방해하는 요소를 정리하고, 대처 규칙을 매일 지켰는지 체크한다 ---------- */
-// 방해 요소 버튼: 누르면 언제·규칙·대신 할 것까지 채운다. star = "✨ 추천 규칙" 묶음(처음 2주용)
-// 시간은 "하루 몇 분"이 아니라 "이 상황·시간대엔 안 한다"는 경계로만 쓴다(지켰는지 바로 알 수 있게)
-const FOCUS_PRESETS = [
-  { name: "📱 쇼츠·릴스·유튜브", when: "공부하다 막힐 때, 쉬는 시간에 \"잠깐만\"", rule: "쇼츠·릴스 앱은 홈 화면에서 빼고, 공부할 땐 폰은 가방에. 보고 싶으면 그날 할 일 끝난 뒤에만", alt: "5분 스트레칭·물 한 잔", star: true },
-  { name: "🌙 자기 전 폰", when: "자려고 누웠을 때", rule: "밤 12시 이후 폰은 책상에서 충전(알람만). 알바 날(수·토)은 12시 30분까지", alt: "내일 할 일 3개 적기", star: true },
-  { name: "💬 SNS·메신저 알림", when: "공부·수업 중 알림이 올 때", rule: "공부·수업 시간엔 방해 금지 모드. 답장은 50분 공부 후 쉬는 10분에 몰아서", alt: "떠오른 건 메모에 적어 두기", star: true },
-  { name: "🎮 게임", when: "과제 시작 전, 머리 식힌다며", rule: "평일엔 할 일 끝난 뒤 한 판만, 시험 주간엔 쉬기", alt: "10분 산책" },
-  { name: "🛒 쇼핑앱 구경", when: "심심할 때, 자기 전", rule: "장바구니에 담기만 하고 결제는 다음 날 다시 보고 결정", alt: "가계부에서 이번 달 남은 예산 보기" },
-];
-let fWeek = WP.mondayOf(TODAY);
+/* ---------- 🎯 집중: 공부·할 일을 방해한 것을 자유롭게 적는 메모(쓰는 대로 저장) ---------- */
 function renderFocus(c) {
-  c.foci ||= []; c.checks ||= {}; c.memos ||= {};
-  const days = Array.from({ length: 7 }, (_, i) => WP.addDays(fWeek, i));
-  const cards = c.foci.map((f) => {
-    const ch = c.checks[f.id] || {}, kept = days.filter((d) => ch[d] === 1).length, missed = days.filter((d) => ch[d] === 0).length;
-    const cells = days.map((d) => {
-      const v = ch[d], st = v === 1 ? "지킴" : v === 0 ? "못 지킴" : "기록 없음";
-      return `<button type="button" class="fday${v === 1 ? " ok" : v === 0 ? " no" : ""}${d === TODAY ? " today" : ""}" data-f="${f.id}" data-d="${d}"${d > TODAY ? " disabled" : ""} aria-label="${label(d)} ${esc(f.name)} ${st}"><span>${DOW[WP.parse(d).getDay()]}</span><b>${v === 1 ? "✅" : v === 0 ? "❌" : "·"}</b></button>`;
-    }).join("");
-    return `<article class="card focus">
-      <header><h3>${esc(f.name)}</h3><span class="badge b-green">🔥 연속 ${WP.streak(ch, TODAY)}일</span><button type="button" class="x fdel" data-f="${f.id}" aria-label="${esc(f.name)} 삭제">✕</button></header>
-      <dl class="fmeta"><dt>⏰ 언제 생기나</dt><dd>${esc(f.when) || "-"}</dd><dt>🛡️ 대처 규칙</dt><dd>${esc(f.rule) || "-"}</dd><dt>🔄 대신 할 것</dt><dd>${esc(f.alt) || "-"}</dd></dl>
-      <div class="fweek">${cells}</div>
-      <p class="small muted">이 주 <b>${kept}일</b> 지킴${missed ? ` · ${missed}일 못 지킴` : ""}</p>
-    </article>`;
-  }).join("");
-  $("p-custom").innerHTML = `<section class="card focus-add">
-      <h3>＋ 방해 요소 추가 <span class="muted small">학습·할 일을 방해하는 것을 적고, 대신 지킬 규칙을 정해 매일 체크해요</span></h3>
-      <div class="presets"><button type="button" class="primary" id="fStar">✨ 추천 규칙 3개 넣기</button>${FOCUS_PRESETS.map((p, i) => `<button type="button" data-p="${i}">${esc(p.name)}</button>`).join("")}</div>
-      <p class="muted small">버튼을 누르면 아래 칸이 추천 규칙으로 채워져요. 내 상황에 맞게 고친 뒤 추가하세요. 체크 기준: 그날 규칙을 한 번이라도 어겼으면 ❌</p>
-      <form class="form fform">
-        <input class="full" name="name" required maxlength="30" placeholder="방해 요소 (예: 📱 쇼츠·릴스)" aria-label="방해 요소">
-        <input class="full" name="when" maxlength="60" placeholder="⏰ 언제 생기나 (예: 공부하다 막힐 때, 자기 전 침대에서)" aria-label="언제 생기나">
-        <input class="full" name="rule" maxlength="60" placeholder="🛡️ 대처 규칙 (예: 앱을 홈 화면에서 지우기, 공부할 땐 폰은 가방에)" aria-label="대처 규칙">
-        <input class="full" name="alt" maxlength="60" placeholder="🔄 대신 할 것 (예: 5분 스트레칭, 물 한 잔)" aria-label="대신 할 것">
-        <button class="primary full">추가</button>
-      </form>
-    </section>
-    <div class="ghead fhead"><button type="button" class="x fnav" data-d="-7" aria-label="이전 주">‹</button><b>${label(fWeek)} ~ ${label(days[6])}${fWeek === WP.mondayOf(TODAY) ? " · 이번 주" : ""}</b><button type="button" class="x fnav" data-d="7" aria-label="다음 주">›</button><span class="muted small">칸을 누를 때마다 ✅ 지킴 → ❌ 못 지킴 → 비우기</span></div>
-    <div class="courses">${cards || `<p class="muted">아직 방해 요소가 없어요. 위의 버튼을 누르거나 직접 적어서 추가해 보세요.</p>`}</div>
-    <section class="card"><h2>📝 이 주 돌아보기</h2>
-      <textarea class="fmemo" rows="4" placeholder="잘된 점 / 어려웠던 점 / 다음 주에 바꿀 규칙" aria-label="이 주 돌아보기">${esc(c.memos[fWeek] || "")}</textarea></section>`;
+  $("p-custom").innerHTML = `<section class="card">
+    <h2>🎯 ${esc(c.name)} 메모 <span class="right muted small">쓰는 대로 저장돼요</span></h2>
+    <textarea class="fmemo" rows="18" aria-label="${esc(c.name)} 메모" placeholder="공부·할 일을 방해한 것과 그때 상황, 다음엔 어떻게 할지 자유롭게 적어요.&#10;예) 11/16 밤 — 과제하다 쇼츠 40분. 다음엔 폰을 가방에 넣고 시작하기">${esc(c.memo)}</textarea>
+  </section>`;
 }
-$("p-custom").addEventListener("click", (e) => {
-  const c = customTab(tab); if (!c || c.kind !== "focus") return;
-  const day = e.target.closest(".fday");
-  if (day) { // ✅ → ❌ → 비우기
-    const ch = (c.checks[day.dataset.f] ||= {}), d = day.dataset.d;
-    if (ch[d] === 1) ch[d] = 0; else if (ch[d] === 0) delete ch[d]; else ch[d] = 1;
-    saveTabs(); return renderFocus(c);
-  }
-  const nav = e.target.closest(".fnav"); if (nav) { fWeek = WP.addDays(fWeek, +nav.dataset.d); return renderFocus(c); }
-  const p = e.target.closest("[data-p]");
-  if (p) { const f = $("p-custom").querySelector(".fform").elements, x = FOCUS_PRESETS[+p.dataset.p]; for (const k of ["name", "when", "rule", "alt"]) f[k].value = x[k]; return f.rule.focus(); }
-  if (e.target.closest("#fStar")) { // 이미 같은 이름이 있으면 건너뜀
-    const add = FOCUS_PRESETS.filter((x) => x.star && !c.foci.some((f) => f.name === x.name));
-    if (!add.length) return alert("추천 규칙 3개가 이미 들어 있어요.");
-    add.forEach((x, i) => c.foci.push({ id: `f${Date.now() + i}`, name: x.name, when: x.when, rule: x.rule, alt: x.alt }));
-    saveTabs(); return renderFocus(c);
-  }
-  const del = e.target.closest(".fdel");
-  if (del && confirm("이 방해 요소를 지울까요? 체크 기록도 함께 지워져요.")) {
-    c.foci = c.foci.filter((f) => f.id !== del.dataset.f); delete c.checks[del.dataset.f]; saveTabs(); renderFocus(c);
-  }
-});
-$("p-custom").addEventListener("change", (e) => {
+$("p-custom").addEventListener("input", (e) => {
   const c = customTab(tab); if (!c || c.kind !== "focus" || !e.target.classList.contains("fmemo")) return;
-  c.memos[fWeek] = e.target.value; saveTabs();
-});
-$("p-custom").addEventListener("submit", (e) => {
-  const c = customTab(tab); if (!c || c.kind !== "focus" || !e.target.classList.contains("fform")) return;
-  e.preventDefault();
-  const f = e.target.elements, name = f.name.value.trim(); if (!name) return;
-  c.foci.push({ id: `f${Date.now()}`, name, when: f.when.value.trim(), rule: f.rule.value.trim(), alt: f.alt.value.trim() });
-  saveTabs(); renderFocus(c);
+  c.memo = e.target.value; saveTabs();
 });
 
 $("tabs").onclick = (e) => {
@@ -532,7 +470,7 @@ $("tabs").onclick = (e) => {
       tabsCfg.course = false;
     } else {
       const c = customTab(k), own = trackers.filter((t) => t.tab === k);
-      if (!confirm(`"${c.name}" 탭을 삭제할까요? 안에 있는 항목 ${c.kind === "track" ? own.length : (c.kind === "focus" ? c.foci : c.items).length}개와 기록도 함께 지워져요.`)) return;
+      if (!confirm(`"${c.name}" 탭을 삭제할까요? 안에 있는 항목 ${c.kind === "track" ? own.length : (c.items || []).length}개와 기록도 함께 지워져요.`)) return;
       tabsCfg.custom = tabsCfg.custom.filter((x) => x.id !== k);
       trackers = trackers.filter((t) => t.tab !== k); save("wp.trackers", trackers);
       for (const m of [prog, done, rounds, notes, goals]) for (const t of own) delete m[`t:${t.id}`];
@@ -736,7 +674,7 @@ initExcel({
     일정: [...myEvents].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => ({ 날짜: e.date, 시작: e.start, 끝: e.end, 이름: e.title, 종류: TYPE_NAME[e.type] || e.type })),
     반복일정: D.weekly.map((w) => ({ 요일: DOW[w.day], 시작: w.start, 끝: w.end, 이름: w.title, 종류: TYPE_NAME[w.type] || w.type, 끝나는날: w.until || "" })),
     마감: D.exams.map((e) => ({ 이름: e.course, 종류: e.kind, 날짜: e.date, 후보날짜: e.alt || "", 진도시작주차: e.from || (e.noMidterm ? 1 : 9) })),
-    집중: tabsCfg.custom.filter((c) => c.kind === "focus").flatMap((c) => (c.foci || []).flatMap((f) => Object.entries((c.checks || {})[f.id] || {}).sort().map(([d, v]) => ({ 방해요소: f.name, 날짜: d, 결과: v === 1 ? "지킴" : "못 지킴", 대처규칙: f.rule || "" })))),
+    집중: tabsCfg.custom.filter((c) => c.kind === "focus").map((c) => ({ 탭: c.name, 메모: c.memo || "" })),
     진도: trackList().flatMap((x) => x.units.map((u) => ({ 항목: x.name, 칸: x.flex ? x.labels[u] : unitLabel(x, u), 진도: `${curPct(x.key, u)}%`, 회독: roundsOf(x.key, u), 메모: (notes[x.key] || {})[u] || "" }))),
   }),
 });
