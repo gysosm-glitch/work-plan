@@ -26,9 +26,10 @@ function idb(mode, fn) {
 const canFile = "showSaveFilePicker" in window;
 const stamp = () => new Date().toTimeString().slice(0, 5);
 
-export function initExcel({ prefix, appName, sheets, el }) {
+export function initExcel({ prefix, also = [], appName, sheets, el }) {
   let handle = null, timer = null, state = "off", last = "";
-  const keys = () => Object.keys(localStorage).filter((k) => k.startsWith(`${prefix}.`) && !k.endsWith(".session"));
+  const pre = [prefix, ...also]; // 같은 엑셀에 함께 저장할 데이터 접두어(예: wp + fee)
+  const keys = () => Object.keys(localStorage).filter((k) => pre.some((p) => k.startsWith(`${p}.`)) && !k.endsWith(".session"));
 
   async function build() {
     const X = await loadXLSX();
@@ -57,10 +58,11 @@ export function initExcel({ prefix, appName, sheets, el }) {
     const wb = X.read(await file.arrayBuffer(), { type: "array" });
     const ws = wb.Sheets._data;
     if (!ws) throw new Error(`"_data" 시트가 없어요. ${appName}에서 만든 엑셀 파일인지 확인해 주세요.`);
-    const rows = X.utils.sheet_to_json(ws, { header: 1 }).slice(1).filter((r) => String(r[0] || "").startsWith(`${prefix}.`));
+    const rows = X.utils.sheet_to_json(ws, { header: 1 }).slice(1).filter((r) => pre.some((p) => String(r[0] || "").startsWith(`${p}.`)));
     if (!rows.length) throw new Error(`${appName} 기록이 들어 있지 않은 파일이에요.`);
     if (!confirm(`엑셀 파일의 기록(${rows.length}개 항목)으로 지금 기록을 바꿀까요? 지금 브라우저의 기록은 파일 내용으로 덮어써져요.`)) return false;
-    keys().forEach((k) => localStorage.removeItem(k));
+    const inFile = new Set(rows.map(([k]) => String(k).split(".")[0])); // 파일에 있는 종류만 바꾼다(가계부만 든 파일이면 일정은 그대로)
+    keys().filter((k) => inFile.has(k.split(".")[0])).forEach((k) => localStorage.removeItem(k));
     rows.forEach(([k, v]) => localStorage.setItem(k, v));
     return true;
   }
@@ -125,4 +127,12 @@ export function initExcel({ prefix, appName, sheets, el }) {
     }
     paint();
   })();
+}
+
+// 엑셀 DB 파일에서 원하는 접두어의 데이터 행([키, JSON])만 읽는다(예전 가계부 파일 옮기기 등)
+export async function readDataRows(file, prefixes) {
+  const X = await loadXLSX();
+  const ws = X.read(await file.arrayBuffer(), { type: "array" }).Sheets._data;
+  if (!ws) throw new Error('"_data" 시트가 없어요');
+  return X.utils.sheet_to_json(ws, { header: 1 }).slice(1).filter((r) => prefixes.some((p) => String(r[0] || "").startsWith(`${p}.`)));
 }

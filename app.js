@@ -3,6 +3,7 @@ import { requireLogin, logout } from "./auth.js";
 import { initExcel } from "./excel.js";
 
 await requireLogin("wp", "💼 Work Plan"); // 로그인하기 전에는 아래가 실행되지 않는다
+const { renderFee, feeSheets } = await import("./fee.js"); // 💰 자금(가계부)도 로그인 뒤에 불러온다
 
 // 앱에서 편집한 시간표·시험이 있으면 data.js 기본값보다 우선
 let D = { ...window.SCHEDULE, ...load("wp.schedule", {}) };
@@ -19,8 +20,8 @@ const TYPE = {
   work: ["💼", "아르바이트·근무"], field: ["🚗", "현장·외근"], appt: ["📍", "약속"], cert: ["📝", "자격증·시험"],
   study: ["✏️", "공부"], prep: ["🗂️", "준비"], exercise: ["🏃", "운동"],
 };
-// 항목·탭 아이콘은 4가지 분류로만(고를 때 이름도 같이 보이게). 예전에 다른 아이콘으로 만든 항목은 그대로 둔다
-const ICONS = [["🚀", "자기 계발"], ["🏃", "운동"], ["📚", "학습"], ["🌱", "습관"]];
+// 항목·탭 아이콘은 5가지 분류로만(고를 때 이름도 같이 보이게). 예전에 다른 아이콘으로 만든 항목은 그대로 둔다
+const ICONS = [["🚀", "프로젝트"], ["✨", "자기 계발"], ["🏃", "운동"], ["📚", "학습"], ["🌱", "습관"]];
 const TYPE_NAME = Object.fromEntries(Object.entries(TYPE).map(([k, [, n]]) => [k, n]));
 const TYPE_COLOR = { job: "#2563eb", exercise: "#22c55e", class: "#4f7cff", meeting: "#8b5cf6", club: "#10b981", work: "#f59e0b", field: "#06b6d4", appt: "#ec4899", cert: "#f43f5e", etc: "#94a3b8", study: "#f5b301", prep: "#14b8a6" };
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
@@ -373,12 +374,12 @@ $("trackForm").onsubmit = addTracker;
 
 /* ---------- 상단 메뉴: 주간·월간·활동은 고정, 학습과 내가 만든 탭은 추가·삭제. 주소(#week 등)와 함께 바뀌어 뒤로 가기가 된다 ---------- */
 const customTab = (id) => tabsCfg.custom.find((c) => c.id === id);
-const validTab = (t) => ["day", "week", "month"].includes(t) || (t === "course" && tabsCfg.course) || !!customTab(t);
+const validTab = (t) => ["day", "week", "month", "fee"].includes(t) || (t === "course" && tabsCfg.course) || !!customTab(t);
 const saveTabs = () => save("wp.tabs", tabsCfg);
 function renderTabs() {
   const btn = (k, n, rm) => `<span class="tabw"><button role="tab" data-tab="${k}" aria-selected="${tab === k}">${esc(n)}</button>${rm ? `<button class="tabx" data-rm="${k}" aria-label="${esc(n)} 탭 삭제" title="탭 삭제">✕</button>` : ""}</span>`;
   $("tabs").innerHTML = btn("week", "🗓️ 주간 계획") + btn("month", "📆 월간") +
-    (tabsCfg.course ? btn("course", "📚 학습", true) : "") + btn("day", "🚀 프로젝트") +
+    (tabsCfg.course ? btn("course", "📚 학습", true) : "") + btn("day", "🚀 프로젝트") + btn("fee", "💰 자금") +
     tabsCfg.custom.map((c) => btn(c.id, `${c.emoji} ${c.name}`, true)).join("") +
     `<button class="addtab" id="addTab">＋ 탭 추가</button>`;
 }
@@ -386,7 +387,7 @@ function setTab(t, push = true) {
   tab = validTab(t) ? t : "week"; save("wp.tab", tab);
   if (location.hash !== `#${tab}`) push ? (location.hash = tab) : history.replaceState(null, "", `#${tab}`);
   renderTabs();
-  ["day", "week", "month", "course"].forEach((k) => ($(`p-${k}`).hidden = k !== tab));
+  ["day", "week", "month", "course", "fee"].forEach((k) => ($(`p-${k}`).hidden = k !== tab));
   $("p-custom").hidden = !customTab(tab);
   renderPanel();
 }
@@ -395,6 +396,7 @@ function renderPanel() {
   else if (tab === "week") renderWeek();
   else if (tab === "month") renderCal();
   else if (tab === "course") renderCourses();
+  else if (tab === "fee") renderFee();
   else renderCustom(customTab(tab));
 }
 
@@ -669,8 +671,9 @@ backupReminder("work-plan", hasData, exportAll);
 
 // 📗 엑셀 DB: 사람이 보기 좋은 시트들(복원은 _data 시트로)
 initExcel({
-  prefix: "wp", appName: "WorkPlan", el: $("xl"),
+  prefix: "wp", also: ["fee"], appName: "WorkPlan", el: $("xl"),
   sheets: () => ({
+    ...feeSheets(), // 💰 자금: 거래내역·예산·고정지출·분류예산
     일정: [...myEvents].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start)).map((e) => ({ 날짜: e.date, 시작: e.start, 끝: e.end, 이름: e.title, 종류: TYPE_NAME[e.type] || e.type })),
     반복일정: D.weekly.map((w) => ({ 요일: DOW[w.day], 시작: w.start, 끝: w.end, 이름: w.title, 종류: TYPE_NAME[w.type] || w.type, 끝나는날: w.until || "" })),
     마감: D.exams.map((e) => ({ 이름: e.course, 종류: e.kind, 날짜: e.date, 후보날짜: e.alt || "", 진도시작주차: e.from || (e.noMidterm ? 1 : 9) })),

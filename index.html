@@ -87,6 +87,134 @@
       <div class="courses" id="acts"></div>
     </section>
 
+    <!-- 💰 자금 (가계부) -->
+    <section class="panel" id="p-fee" role="tabpanel" hidden>
+      <div class="card feebar">
+        <nav class="fee-tabs" id="f-tabbar" aria-label="화면 이동">
+          <button data-go="home"><span>🏠</span>홈</button>
+          <button data-go="add"><span>✍️</span>기록</button>
+          <button data-go="stats"><span>📊</span>분석</button>
+          <button data-go="list"><span>📒</span>내역</button>
+        </nav>
+        <nav class="month"><button class="nav" id="f-prev" aria-label="이전 달">‹</button><b id="f-month"></b><button class="nav" id="f-next" aria-label="다음 달">›</button></nav>
+      </div>
+        <div class="notice newyear" id="f-newYear" hidden role="status"><span>🎉 <b>2027년 새 출발!</b> 2026년 연습 기록 <b id="f-newYearCount">0</b>건을 정리했어요.</span>
+    <button id="f-practiceDl">📥 연습 기록 파일로 받기</button><button id="f-newYearClose">닫기</button></div>
+    <div id="f-screens">
+    <!-- 🏠 홈 -->
+    <div class="screen" data-screen="home">
+    <section class="hello" id="hello"></section>
+    <div class="hero">
+      <section class="passbook" aria-label="이번 달 예산 잔액">
+        <div class="pb-top"><span id="acct"></span><button id="editBudget" class="ghost small">✏️ 예산 설정</button></div>
+        <p class="pb-label">💳 이번 달 남은 예산</p>
+        <p class="balance" id="balance"></p>
+        <div class="meter"><i id="meter"></i></div>
+        <p class="pb-sub" id="pbSub"></p>
+      </section>
+      <section class="flow">
+        <div class="io in"><span>💵 이번 달 수입</span><b id="incTotal"></b><small id="incNote"></small></div>
+        <div class="io out"><span>💸 이번 달 지출</span><b id="outTotal"></b><small id="outNote"></small></div>
+        <div class="io net"><span>🐷 수입 − 지출</span><b id="netTotal"></b><small id="netNote"></small></div>
+      </section>
+    </div>
+    <div class="row">
+      <section class="card insight" id="insight"></section>
+      <section class="card">
+        <h2>🧾 최근 거래 <button class="right small linkbtn" data-go="list">전체 보기 ›</button></h2>
+        <ul class="recent" id="recent"></ul>
+      </section>
+    </div>
+    </div>
+
+    <!-- ✍️ 기록 -->
+    <div class="screen" data-screen="add" hidden>
+    <section class="card">
+      <h2>📆 <span id="catMonth"></span> 분야별 지출 <span class="right muted small" id="catSum"></span><button type="button" class="small-btn" id="cbBtn">🎯 분류별 예산</button></h2>
+      <div class="catgrid" id="catGrid"></div>
+      <p class="muted small hint">칸을 누르면 아래 입력칸에서 그 분류가 바로 선택돼요. 위쪽 ‹ › 로 다른 달도 볼 수 있어요.</p>
+    </section>
+    <section class="card">
+        <h2>✍️ 거래 입력</h2>
+        <div class="quick" id="quick"></div>
+        <form id="f-form" class="form">
+          <div class="seg full" role="radiogroup" aria-label="거래 종류">
+            <label><input type="radio" name="type" value="out" checked><span>💸 출금 (지출)</span></label>
+            <label><input type="radio" name="type" value="in"><span>💵 입금 (수입)</span></label>
+          </div>
+          <input name="date" type="date" required aria-label="날짜">
+          <input name="amount" type="number" inputmode="numeric" min="1" step="1" placeholder="금액 (원)" required aria-label="금액">
+          <div class="cats full" id="cats" role="radiogroup" aria-label="분야"></div>
+          <input class="full" name="memo" placeholder="적요 (예: 학식, 버스)" maxlength="40" aria-label="적요">
+          <label class="need full" id="needRow"><input type="checkbox" name="need" checked> ✅ 꼭 필요한 지출이었어요 <span class="muted small">(체크를 끄면 "줄일 수 있는 돈"에 모여요)</span></label>
+          <button class="primary full" id="saveBtn">거래 기록</button>
+          <button type="button" class="full" id="cancelEdit" hidden>수정 취소</button>
+        </form>
+      </section>
+    <section class="card">
+      <h2>🔁 고정 지출·수입 <span class="right muted small">매달 정한 날 자동으로 기록돼요</span></h2>
+      <ul class="fixed" id="fixedList"></ul>
+      <form class="form" id="fixedForm">
+        <select name="type" aria-label="구분"><option value="out">💸 지출</option><option value="in">💵 수입</option></select>
+        <label class="inl">매달 <input name="day" type="number" min="1" max="31" value="1" required aria-label="매달 며칠"> 일</label>
+        <input name="amount" type="number" inputmode="numeric" min="1" step="1" placeholder="금액 (원)" required aria-label="금액">
+        <select name="category" id="fixedCat" aria-label="분류"></select>
+        <input class="full" name="memo" placeholder="이름 (예: 유튜브 프리미엄, 통신비, 용돈)" maxlength="40" required aria-label="이름">
+        <button class="primary full">고정 항목 추가</button>
+      </form>
+      <p class="muted small hint">등록한 날이 그 달 지정일보다 늦으면 다음 달부터 기록돼요. 31일로 정하면 짧은 달은 말일에 기록돼요.</p>
+    </section>
+    </div>
+
+    <!-- 📊 분석 -->
+    <div class="screen" data-screen="stats" hidden>
+    <section class="card">
+        <h2>🧾 분야별 지출 <span class="right muted small" id="catTotal"></span></h2>
+        <div class="bars" id="bars"></div>
+      </section>
+    <section class="card save-card">
+      <h2>✂️ 앞으로 줄일 수 있는 돈 <span class="right muted small" id="cutNote"></span></h2>
+      <div class="cut" id="cut"></div>
+    </section>
+    <div class="row">
+      <section class="card">
+        <h2><span id="monthTitle">📈 월별 수입·지출</span> <span class="right legend"><span><i class="ln-s out"></i>지출</span><span><i class="ln-s in"></i>수입</span></span></h2>
+        <div class="chart" id="monthChart"></div>
+      </section>
+      <section class="card">
+        <h2>📉 주별 지출 <span class="right legend"><span><i class="ln-s out"></i>지출</span><span><i class="ln"></i>주간 예산</span></span></h2>
+        <div class="chart" id="weekChart"></div>
+      </section>
+    </div>
+    <section class="card">
+      <h2>📅 일별 지출 <span class="right legend"><span><i class="sw ok"></i>하루 예산 이내</span><span><i class="sw over"></i>초과</span><span><i class="ln"></i>하루 예산</span></span></h2>
+      <div class="daily" id="daily"></div>
+      <div class="days" id="days"></div>
+    </section>
+    </div>
+
+    <!-- 📒 내역 -->
+    <div class="screen" data-screen="list" hidden>
+    <section class="card">
+      <h2>📒 거래내역 <span class="right toolbar">
+        <button id="f-export">💾 가계부 백업 저장</button>
+        <label class="btn">📂 가계부 백업·엑셀 불러오기<input type="file" id="f-import" accept="application/json,.xlsx" hidden></label>
+      </span></h2>
+      <div class="scroll"><table class="ledger" id="ledger"></table></div>
+    </section>
+    </div>
+    </div>
+      <div class="tip" id="f-tip" hidden></div>
+      <dialog id="cbDlg" aria-labelledby="cbTitle">
+    <form id="cbForm">
+      <h2 id="cbTitle">🎯 분류별 월 예산</h2>
+      <p class="muted small">매달 같은 금액이 적용돼요. 비워 두면 그 분류는 예산 없음이에요.</p>
+      <div class="cbrows" id="cbRows"></div>
+      <div class="actions"><button type="button" id="cbCancel">취소</button><span class="grow"></span><button class="primary">저장</button></div>
+    </form>
+  </dialog>
+    </section>
+
     <!-- 내가 만든 탭 -->
     <section class="panel" id="p-custom" role="tabpanel" hidden></section>
 
@@ -161,6 +289,7 @@
 
   <script src="data.js"></script>
   <script src="logic.js"></script>
+  <script src="fee-logic.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
