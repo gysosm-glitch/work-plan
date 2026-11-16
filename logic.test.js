@@ -37,8 +37,6 @@ assert.deepStrictEqual(W.parseGoal("6~7, 9~10주차 1회독 완료(8주차 제�
 assert.deepStrictEqual(W.parseGoal("CH 1~3 1회독: 목차 스캔"), { units: [1, 2, 3], round: 1 });
 assert.deepStrictEqual(W.parseGoal("13주차 신규 수업 당일 1~2회독(이론+실습)"), { units: [13], round: 2 });
 assert.deepStrictEqual(W.parseGoal("헬스 3번"), {}); // 회독 없음 → 직접 체크
-// 기말 계획은 전부 과목 줄임말이 맞아야 한다
-for (const t of window.STUDY_PLAN.items) for (const ab of t.match(/\[([^\]]+)\]/)[1].split("/")) assert.ok(window.STUDY_PLAN.subjects[ab], t);
 // 🎯 집중 연속 일수
 assert.strictEqual(W.streak({ "2026-11-13": 1, "2026-11-14": 1 }, "2026-11-15"), 2); // 오늘 기록 없음 → 어제부터
 assert.strictEqual(W.streak({ "2026-11-14": 1, "2026-11-15": 1 }, "2026-11-15"), 2);

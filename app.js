@@ -56,21 +56,14 @@ if (!load("wp.focusSeeded", false)) {
 const parseGoal = WP.parseGoal;
 let courseUnits = load("wp.courseUnits", {}); // 주차 대신 다른 단위로 공부하는 과목 { 과목: { unit: "CH", count: 9 } }
 let goals = load("wp.goals", {}); // 📚 학습 주간 목표 { 과목: { 그 주 월요일: [{ text, done }] } }
-if (window.STUDY_PLAN && +load("wp.goalsSeeded", 0) < window.STUDY_PLAN.v) { // 기말 공부 계획을 과목·주별 목표로 넣는다(처음엔 전부, 그 뒤엔 새로 추가된 것만)
-  const p = window.STUDY_PLAN, from = +load("wp.goalsSeeded", 0), old = tabsCfg.custom.find((c) => c.id === "c-study");
-  const doneTx = new Set((old?.items || []).filter((t) => t.done).map((t) => t.text));
-  const todo = [...(from ? [] : p.items), ...p.added.filter(([v]) => v > from).map(([, t]) => t)];
-  for (const text of todo) {
-    const m = text.match(/^(\d{1,2})\/(\d{1,2})(.*?)\[([^\]]+)\]\s*(.*)$/);
-    const wk = WP.mondayOf(`${p.year}-${WP.pad(+m[1])}-${WP.pad(+m[2])}`);
-    for (const ab of m[4].split("/")) {
-      const list = ((goals[p.subjects[ab]] ||= {})[wk] ||= []);
-      list.splice(p.items.includes(text) ? list.length : 0, 0, { text: `${m[1]}/${m[2]}${m[3]}${m[5]}`, ...parseGoal(m[5]), done: doneTx.has(text) }); // 나중에 추가된 건 그 주 맨 앞
-    }
+// 미리 넣어 두었던 기말 공부 계획(날짜로 시작하는 목표)을 한 번 지운다. 직접 넣은 목표·회독 기록·과목 단위는 그대로
+if (!load("wp.planRemoved", false)) {
+  for (const k of Object.keys(goals)) if (!k.startsWith("t:")) for (const wk of Object.keys(goals[k])) {
+    goals[k][wk] = goals[k][wk].filter((g) => !/^\d{1,2}\/\d{1,2}/.test(g.text));
+    if (!goals[k][wk].length) delete goals[k][wk];
   }
-  if (old) { old.items = old.items.filter((t) => !p.items.includes(t.text) && !t.text.includes("시험 후 전환")); if (!old.items.length) tabsCfg.custom = tabsCfg.custom.filter((c) => c !== old); save("wp.tabs", tabsCfg); }
-  courseUnits = { ...p.units, ...courseUnits }; save("wp.courseUnits", courseUnits);
-  save("wp.goals", goals); save("wp.goalsSeeded", p.v);
+  tabsCfg.custom = tabsCfg.custom.filter((c) => c.id !== "c-study"); // 예전 "기말 공부 계획" 탭
+  save("wp.goals", goals); save("wp.tabs", tabsCfg); save("wp.planRemoved", true);
 }
 let tab = load("wp.tab", "week");
 let sel = TODAY;
